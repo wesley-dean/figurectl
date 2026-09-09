@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Propose a new capability or reusable starter improvement
+about: Propose a new figurectl capability or contract change
 title: ""
 labels: enhancement
 assignees: ""
@@ -9,8 +9,8 @@ assignees: ""
 ## Problem or need
 
 <!--
-Describe the concrete problem.  What becomes difficult, unsafe, repetitive, or
-unclear without this change?
+Describe the concrete figure-processing problem.  What becomes difficult, unsafe,
+repetitive, or unclear without this change?
 -->
 
 ## Proposed behavior
@@ -23,31 +23,36 @@ you need over a particular implementation when possible.
 ## Promises and non-promises
 
 <!--
-What should callers or derived projects be able to rely upon?  What should they
-explicitly not infer from the feature?
+What should callers be able to rely upon?  What should they explicitly not infer
+from the feature?
 -->
 
 ## Alternatives considered
 
 <!--
-Could existing Bash facilities, Make, caller-owned composition, an existing
-reviewed dependency, or a smaller API solve the problem?
+Could an existing figurectl command/format, caller-owned composition, Graphviz,
+Make, an existing reviewed dependency, or a smaller API solve the problem?
 -->
 
 ## Architecture and compatibility impact
 
 <!--
-Does this add or change a public API, output format, artifact, Make target,
-configuration key, runtime assumption, source ordering rule, or compatibility
-commitment?  Does it belong in the generic starter or only in one derived project?
+Does this add or change a public command, option, authored source format,
+publication output format, artifact, Make target, metadata key, runtime assumption,
+build-time plugin contract, or compatibility commitment?
+
+If it proposes runtime/external plugin loading, explain why the current
+build-time-only plugin model is insufficient; ADR-018 requires a new architectural
+decision for that boundary.
 -->
 
 ## Security and dependency impact
 
 <!--
-Does this change sensitive-data flow, untrusted-input parsing, filesystem/network
-authority, subprocess execution, dynamic loading, CI/release authority, or add a
-dependency?  If so, identify the new trust boundary or attack surface.
+Does this change untrusted-input parsing, generated paths, filesystem/network
+authority, Graphviz or other subprocess execution, dynamic loading, CI/release
+authority, or add a dependency?  If so, identify the new trust boundary or attack
+surface and any expected residual risk.
 -->
 
 ## Additional context
