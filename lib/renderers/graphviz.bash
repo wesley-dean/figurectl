@@ -26,9 +26,10 @@
 ##
 ## When `DOT_STYLE` is non-empty, the embedded DOT-style AWK program is written to
 ## a secure temporary file and used to produce a temporary styled DOT input under
-## `FIGURES_DIR`.  Both temporary files are removed after each render attempt.
-## The historical style behavior is preserved: style text is inserted after the
-## first textual `{` in the DOT source.
+## `FIGURES_DIR`.  Temporary path templates end in `XXXXXX` for compatibility
+## with both GNU and BusyBox `mktemp`.  Both temporary files are removed after
+## each render attempt.  The historical style behavior is preserved: style text
+## is inserted after the first textual `{` in the DOT source.
 ##
 ## @param manifest Path containing materialized source asset paths, one per line.
 ## @param output_format Graphviz `-T` format and generated filename extension.
@@ -38,8 +39,8 @@
 ## Missing Graphviz, style-transform failure, and Graphviz failure are reported
 ## through `die()`.  Graphviz may also write renderer diagnostics.
 ## @par Side Effects
-## Invokes AWK and Graphviz; may create temporary `.awk`/`.dot` files and writes
-## generated sibling graphics beside materialized DOT files.
+## Invokes AWK and Graphviz; may create temporary files and writes generated
+## sibling graphics beside materialized DOT files.
 ## @retval 0 Every applicable manifest entry rendered successfully.
 figurectl_render_graphviz() {
   local manifest=$1
@@ -61,9 +62,9 @@ figurectl_render_graphviz() {
     styled_dot_file=''
 
     if [[ -n $DOT_STYLE ]]; then
-      style_awk_file=$(mktemp "${TMPDIR:-/tmp}/figurectl.dot-style.XXXXXX.awk")
+      style_awk_file=$(mktemp "${TMPDIR:-/tmp}/figurectl.dot-style.XXXXXX")
       figurectl_dot_style_awk_write "$style_awk_file"
-      styled_dot_file=$(mktemp "${FIGURES_DIR}/.styled.XXXXXX.dot")
+      styled_dot_file=$(mktemp "${FIGURES_DIR}/.styled.XXXXXX")
 
       if awk \
         -v stylefile="$DOT_STYLE" \
