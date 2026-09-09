@@ -104,6 +104,41 @@ jobs:
         continue-on-error: true
         run: make test-report
 
+      - name: Diagnose unsafe identifier failure
+        if: steps.bats.outcome == 'failure'
+        run: |
+          diagnostic="${RUNNER_TEMP}/unsafe-id-diagnostic"
+          figures="${diagnostic}/figures"
+          mkdir -p "${figures}"
+          cat >"${diagnostic}/input.md" <<'EOF'
+          <!-- figure id="../escape" format="text" alt="Unsafe" -->
+          ```text
+          unsafe
+          ```
+          EOF
+          set +e
+          dist/figurectl.dev.bash process \
+            --format text \
+            --figures-dir "${figures}" \
+            "${diagnostic}/input.md" \
+            >"${diagnostic}/stdout" \
+            2>"${diagnostic}/stderr"
+          status=$?
+          set -e
+          printf 'unsafe diagnostic status=%s\n' "${status}"
+          printf '%s\n' '--- stdout ---'
+          cat "${diagnostic}/stdout"
+          printf '%s\n' '--- stderr ---'
+          cat "${diagnostic}/stderr"
+          printf '%s\n' '--- files ---'
+          find "${diagnostic}" -maxdepth 2 -type f -print | sort
+          printf 'escaped file exists: '
+          if test -e "${diagnostic}/escape.txt"; then
+            printf '%s\n' yes
+          else
+            printf '%s\n' no
+          fi
+
       - name: Publish Bats test results
         uses: dorny/test-reporter@a43b3a5f7366b97d083190328d2c652e1a8b6aa2 # v3.0.0
         if: always()
