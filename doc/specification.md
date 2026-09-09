@@ -5,10 +5,10 @@ consumer-facing specification.  Architecture Decision Records explain why the
 contract has its current shape; maintained source documentation explains local
 implementation details; tests provide executable evidence for this specification.
 
-The initial implementation is being migrated from the `wesley-dean/writing`
-repository.  Until that migration is complete, this specification describes the
-behavior the standalone project is expected to preserve rather than claiming that
-the inherited template implementation already provides it.
+The standalone implementation preserves the figure-processing behavior extracted
+from the `wesley-dean/writing` repository.  Adoption by that repository is a
+separate consumer-migration step and does not make the standalone contract
+provisional.
 
 ## Purpose
 
