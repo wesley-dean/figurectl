@@ -149,9 +149,12 @@ particular:
   `getline`, file access, subprocess behavior, and portability assumptions when
   relevant.
 
-Generated AWK reference documentation requires a suitable pinned `awk-doxygen`
-release.  Until that dependency is deliberately adopted, lack of generated AWK
-reference output does not relax the maintained-source documentation standard.
+Generated reference documentation uses separate prepared language-specific
+filters: `vendor/doxygen-bash.awk` for maintained Bash and
+`vendor/doxygen-awk.awk` for maintained AWK.  Both are pinned repository
+dependencies managed by bashdeps.  `make docs` consumes those prepared files and
+must not synchronize them.  Generated output remains derivative and does not
+relax or supersede the maintained-source documentation standards.
 
 ## Build and Dependency Boundaries
 
@@ -164,12 +167,14 @@ GNU Make is the canonical development/CI orchestration surface.
 - `make all` runs `deps` then `build`.
 - `make check` validates maintained Bash and portable-AWK source.
 - `make test` and `make test-report` exercise the exact generated artifacts.
-- `make docs` consumes prepared documentation dependencies and must not silently
-  synchronize them.
+- `make docs` consumes prepared Bash/AWK documentation filters and must not
+  silently synchronize them.
 
 bashdeps manages repository dependencies, not system packages.  Build/runtime
 system commands such as Make, Bash, AWK, Graphviz, Bats, Doxygen, ShellCheck, and
-shfmt remain outside bashdeps package-management scope.
+shfmt remain outside bashdeps package-management scope.  `bash-doxygen`,
+`awk-doxygen`, and Bash-Minifier are repository dependencies because the project
+pins and consumes their artifacts directly.
 
 ## Release Artifacts
 
@@ -243,6 +248,8 @@ Important invariants include:
 - DOT/style content is data, not Bash source;
 - Graphviz remains a trusted conditional native-code parser rather than a
   sandboxed component;
+- repository documentation filters are pinned and digest-verified through
+  bashdeps rather than fetched during `make docs`;
 - release validation does not intentionally receive publication write/OIDC
   authority; and
 - transferred release bytes are checksum-verified before attestation and
@@ -280,6 +287,7 @@ parser semantics.  Deliberately preserved quirks documented in
 - `doc/documentation-standard.md`: maintained Bash documentation standard.
 - `doc/awk-documentation-standard.md`: maintained AWK documentation standard.
 - `doc/reference/`: generated reference documentation; do not commit.
-- `vendor/`: generated dependency state; do not commit.
+- `vendor/`: generated dependency state, including language-specific Doxygen
+  filters; do not commit.
 - `dist/`: generated release artifacts; do not edit directly.
 - `test-results/`: generated JUnit reports.
