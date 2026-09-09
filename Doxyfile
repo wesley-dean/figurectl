@@ -1,15 +1,16 @@
-PROJECT_NAME           = "$(BASH_STARTER_DOXYGEN_PROJECT_NAME)"
-PROJECT_BRIEF          = "Reference documentation for a modular Bash project"
+PROJECT_NAME           = "$(FIGURECTL_DOXYGEN_PROJECT_NAME)"
+PROJECT_BRIEF          = "Reference documentation for figurectl Bash source"
 OUTPUT_DIRECTORY       = doc/reference
 CREATE_SUBDIRS         = NO
 GENERATE_HTML          = YES
 HTML_OUTPUT            = .
-GENERATE_LATEX         = NO
+GENERATE_LATEX          = NO
 GENERATE_MAN           = NO
-GENERATE_RTF           = NO
-GENERATE_XML           = NO
+GENERATE_RTF            = NO
+GENERATE_XML            = NO
 INPUT                  = src \
                          lib \
+                         scripts \
                          doc/adr
 RECURSIVE              = YES
 FILE_PATTERNS          = *.bash \
