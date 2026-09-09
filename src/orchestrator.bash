@@ -17,6 +17,15 @@
 ## invoked only through a renderer function registered by graphical output
 ## plugins.  Caller-selected DOT styling remains external policy.
 
+## @var FIGURECTL_CLEANUP_PATHS
+## @brief Holds command-level temporary files that must survive function unwinding.
+## @details
+## EXIT traps run after local function scope may have unwound.  Keeping registered
+## cleanup paths in process-global state prevents `set -u` from turning an
+## otherwise-correct parser/runtime failure into an unrelated unbound-variable
+## failure during cleanup.
+declare -a FIGURECTL_CLEANUP_PATHS=()
+
 ## @fn usage()
 ## @brief Prints the figurectl v1 command-line usage.
 ## @details
@@ -69,6 +78,72 @@ die_usage() {
 die() {
   printf 'figurectl: %s\n' "$1" >&2
   exit 1
+}
+
+## @fn figurectl_cleanup_on_exit()
+## @brief Removes registered command-level temporary files without masking status.
+## @details
+## The EXIT trap records `$?` before performing cleanup, disables itself to avoid
+## recursive execution, removes process-global registered paths, and exits with
+## the original status.  Cleanup failure is intentionally unable to replace the
+## primary command/parser failure status.
+##
+## @par Standard Output
+## Nothing is written to standard output.
+## @par Standard Error
+## `rm` diagnostics may be written if the operating system refuses cleanup.
+## @par Side Effects
+## Removes paths in `FIGURECTL_CLEANUP_PATHS`, clears the EXIT trap, and exits the
+## current process with the pre-cleanup status.
+## @par Exit Status
+## Preserves the status that caused the EXIT trap to run.
+figurectl_cleanup_on_exit() {
+  local status=$?
+
+  trap - EXIT
+  if ((${#FIGURECTL_CLEANUP_PATHS[@]})); then
+    rm -f -- "${FIGURECTL_CLEANUP_PATHS[@]}" || :
+  fi
+  exit "$status"
+}
+
+## @fn figurectl_cleanup_arm()
+## @brief Registers command-level temporary files for EXIT cleanup.
+## @param ... Temporary pathnames that should be removed on process exit.
+## @par Standard Output
+## Nothing is written to standard output.
+## @par Side Effects
+## Replaces `FIGURECTL_CLEANUP_PATHS` and installs `figurectl_cleanup_on_exit` as
+## the current EXIT trap.
+## @retval 0 Cleanup state was registered.
+figurectl_cleanup_arm() {
+  FIGURECTL_CLEANUP_PATHS=("$@")
+  trap figurectl_cleanup_on_exit EXIT
+}
+
+## @fn figurectl_cleanup_disarm()
+## @brief Removes registered temporary files after successful command completion.
+## @details
+## Normal completion cleans the registered paths while their owning command is
+## still active, clears process-global cleanup state, and removes the EXIT trap.
+## If `rm` fails, normal `set -e` behavior is allowed to fail the command; the
+## still-installed EXIT trap then makes a best-effort retry while preserving that
+## cleanup failure status.
+##
+## @par Standard Output
+## Nothing is written to standard output.
+## @par Standard Error
+## `rm` may report an operating-system cleanup failure.
+## @par Side Effects
+## Removes registered paths, clears `FIGURECTL_CLEANUP_PATHS`, and removes the
+## EXIT trap after successful cleanup.
+## @retval 0 Registered temporary files were removed successfully.
+figurectl_cleanup_disarm() {
+  if ((${#FIGURECTL_CLEANUP_PATHS[@]})); then
+    rm -f -- "${FIGURECTL_CLEANUP_PATHS[@]}"
+  fi
+  FIGURECTL_CLEANUP_PATHS=()
+  trap - EXIT
 }
 
 ## @fn source_format_for_output()
@@ -300,7 +375,8 @@ command_select() {
 ## `--figures-dir` is mandatory and created when absent.  A configured DOT style
 ## must already exist even when the requested output does not use it, preserving
 ## compatibility validation order.  The AWK render manifest is temporary process
-## state and is removed through an EXIT trap on interruption or failure.
+## state registered in process-global cleanup storage so EXIT cleanup remains safe
+## after function scope unwinds.
 ##
 ## @param ... Arguments accepted by the public `render` command.
 ## @par Standard Output
@@ -319,13 +395,12 @@ command_render() {
 
   local manifest
   manifest=$(mktemp "${TMPDIR:-/tmp}/figurectl.render.XXXXXX")
-  trap 'rm -f "$manifest"' EXIT
+  figurectl_cleanup_arm "$manifest"
 
   run_awk_mode render > "$manifest"
   render_registered_output "$manifest"
 
-  rm -f "$manifest"
-  trap - EXIT
+  figurectl_cleanup_disarm
 }
 
 ## @fn command_replace()
@@ -351,6 +426,9 @@ command_replace() {
 ##
 ## After selection, global `INPUT` is rebound to the temporary selected Markdown
 ## so render and replace consume exactly the selected authored representation.
+## Temporary paths are registered in process-global cleanup storage before any
+## phase can fail, preserving the primary exit status under `set -u` even after
+## this function's local scope unwinds during shell exit.
 ##
 ## @param ... Arguments accepted by the public `process` command.
 ## @par Standard Output
@@ -371,7 +449,7 @@ command_process() {
   local manifest
   selected=$(mktemp "${TMPDIR:-/tmp}/figurectl.selected.XXXXXX")
   manifest=$(mktemp "${TMPDIR:-/tmp}/figurectl.render.XXXXXX")
-  trap 'rm -f "$selected" "$manifest"' EXIT
+  figurectl_cleanup_arm "$selected" "$manifest"
 
   run_awk_mode select > "$selected"
 
@@ -385,8 +463,7 @@ command_process() {
     run_awk_mode replace
   fi
 
-  rm -f "$selected" "$manifest"
-  trap - EXIT
+  figurectl_cleanup_disarm
 }
 
 ## @fn main()
