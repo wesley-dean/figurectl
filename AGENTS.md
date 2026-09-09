@@ -7,7 +7,7 @@ working on figurectl.  It is intentionally smaller than the ADR corpus.
 
 Before consequential work:
 
-1. Read `README.md` for the project overview and current migration status.
+1. Read `README.md` for the project overview and migration/release state.
 2. Read `doc/specification.md` for the public behavior contract.
 3. Read `doc/engineering-philosophy.md` for reusable engineering posture.
 4. Read `doc/decisions.md` for the concise architectural map.
@@ -17,8 +17,8 @@ Before consequential work:
    registration, discovery, dispatch, or capability serialization.
 7. Read `doc/threat-model.md` and `doc/threat-modeling.md` when work changes
    authority, untrusted-input handling, filesystem output, subprocess behavior,
-   dependencies, build transformations, plugin boundaries, or other
-   security-relevant behavior.
+   dependencies, build transformations, plugin boundaries, release permissions,
+   or other security-relevant behavior.
 8. Read `doc/documentation-standard.md` before editing maintained Bash comments.
 9. Read `doc/awk-documentation-standard.md` before editing maintained AWK source.
 10. Read `doc/testing.md` before changing tests or generated artifacts.
@@ -30,9 +30,9 @@ truth.
 
 ## Current Migration State
 
-The behavior-preserving extraction from `wesley-dean/writing` now exists as
-maintained modular Bash/AWK source, and the artifact migration assembles that
-source into standalone figurectl development, ordinary, and minified Bash files.
+The behavior-preserving extraction from `wesley-dean/writing` exists as maintained
+modular Bash/AWK source, and the artifact migration assembles that source into
+standalone figurectl development, ordinary, and minified Bash files.
 
 Input/output plugin discovery occurs only during `make build`.  Generated
 artifacts contain their format implementations and embedded AWK programs; they do
@@ -40,9 +40,8 @@ not require `src/`, `lib/`, `scripts/`, `vendor/`, or plugin directories at
 runtime.
 
 The remaining cross-repository migration is adoption by `wesley-dean/writing`
-after a suitable figurectl release exists.  Versioning and MegaLinter may remain
-temporarily disabled during active development; do not re-enable them merely as
-part of unrelated runtime work.
+after a suitable figurectl release exists.  Release readiness and writing-repo
+adoption are separate review surfaces.
 
 The compatibility baseline remains the figure-processing behavior originally
 maintained as `scripts/figurectl.bash` in `wesley-dean/writing`.
@@ -150,7 +149,8 @@ particular:
   `getline`, file access, subprocess behavior, and portability assumptions when
   relevant.
 
-The `awk-doxygen` filter is being developed separately.  Lack of generated AWK
+Generated AWK reference documentation requires a suitable pinned `awk-doxygen`
+release.  Until that dependency is deliberately adopted, lack of generated AWK
 reference output does not relax the maintained-source documentation standard.
 
 ## Build and Dependency Boundaries
@@ -196,6 +196,13 @@ Because the Bash artifact contains embedded AWK source, tests must prove that
 assembly, comment stripping, and minification preserve behavior rather than
 assuming those transformations are harmless.
 
+Release validation and publication are separate jobs under ADR-020.  Validation
+runs repository build/dependency/test code with read-only repository-content
+authority, including Graphviz-present behavior tests and Bash 4.3 compatibility.
+Only after the exact six release files pass validation are they transferred to a
+publication job, checksum-verified again, attested, and published.  The publication
+job does not check out, rebuild, or synchronize figurectl source.
+
 ## Testing
 
 Follow documentation-driven, test-second development under ADR-008.
@@ -233,9 +240,13 @@ Important invariants include:
 - figure identifiers are validated before filesystem path construction;
 - embedded AWK heredoc delimiters are checked for source collisions;
 - temporary AWK program paths are created with `mktemp`;
-- DOT/style content is data, not Bash source; and
+- DOT/style content is data, not Bash source;
 - Graphviz remains a trusted conditional native-code parser rather than a
-  sandboxed component.
+  sandboxed component;
+- release validation does not intentionally receive publication write/OIDC
+  authority; and
+- transferred release bytes are checksum-verified before attestation and
+  publication.
 
 Changes that weaken or expand these boundaries require threat-model review and may
 require a new ADR.
@@ -263,6 +274,7 @@ parser semantics.  Deliberately preserved quirks documented in
 - `doc/specification.md`: public figurectl contract.
 - `doc/built-in-format-plugins.md`: internal built-in format plugin contract.
 - `doc/threat-model.md`: project-specific threat model.
+- `doc/release-verification.md`: exact-artifact release and authority contract.
 - `doc/decisions.md`: concise Accepted-decision map.
 - `doc/adr/`: full architectural decisions.
 - `doc/documentation-standard.md`: maintained Bash documentation standard.
