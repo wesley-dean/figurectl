@@ -1,201 +1,192 @@
 # AGENTS.md
 
-This file is the concise operational map for contributors and AI-assisted tools.
-It is intentionally smaller than the project's ADR corpus.  Reusable engineering
-posture belongs in `doc/engineering-philosophy.md`; concise decision summaries
-belong in `doc/decisions.md`; architectural reasoning belongs in `doc/adr/`;
-current observable behavior belongs in a project specification when one exists;
-implementation-level contracts and rationale belong beside the code in Doxygen
-comments.
+This file is the concise operational map for contributors and AI-assisted tools
+working on figurectl.  It is intentionally smaller than the ADR corpus.
 
 ## Start Here
 
 Before consequential work:
 
-1. Read `README.md` for the project overview and lifecycle.
-2. Read `doc/engineering-philosophy.md` for the starter's reusable engineering
-   posture and design instincts.
-3. Read `doc/decisions.md` for the concise architectural map.
-4. Read the ADR index in `doc/adr/README.md` and the ADRs governing the area you
-   intend to change.
-5. Read `doc/threat-modeling.md` when the work changes authority, trust, sensitive
-   data flow, untrusted-input handling, dependencies, network behavior, or other
-   security-relevant boundaries.
-6. Read `doc/documentation-standard.md` before editing Bash source comments.
-7. Read `doc/testing.md` before changing tests or generated artifacts.
-8. Read `doc/release-verification.md` before changing release behavior.
+1. Read `README.md` for the project overview and current migration status.
+2. Read `doc/specification.md` for the intended public behavior contract.
+3. Read `doc/engineering-philosophy.md` for reusable engineering posture.
+4. Read `doc/decisions.md` for the concise architectural map.
+5. Read the ADR index in `doc/adr/README.md` and the ADRs governing the area being
+   changed.
+6. Read `doc/threat-modeling.md` when work changes authority, untrusted-input
+   handling, filesystem output, subprocess behavior, dependencies, build
+   transformations, dynamic loading, or other security-relevant boundaries.
+7. Read `doc/documentation-standard.md` before editing maintained Bash comments.
+8. Read `doc/awk-documentation-standard.md` before editing maintained AWK source.
+9. Read `doc/testing.md` before changing tests or generated artifacts.
+10. Read `doc/release-verification.md` before changing release behavior.
 
-`doc/engineering-philosophy.md` is guidance rather than a substitute for an
-Accepted ADR.  `doc/decisions.md` is a discovery aid rather than a substitute for
-full ADR reasoning.  When repository evidence and an ADR conflict, surface the
-conflict.  Do not silently treat the implementation as the architectural source
-of truth.
+When implementation, tests, specification, and an Accepted ADR conflict, surface
+the conflict.  Do not silently treat current code as the architectural source of
+truth.
 
-## Repository Shape
+## Current Migration State
 
-- `src/`: entrypoint and product-facing orchestration.
-- `lib/`: maintained reusable implementation modules.
-- `lib/plugins/`: automatically discovered example plugin modules.
-- `tests/`: Bats behavior tests and Bash compatibility helpers.
-- `doc/engineering-philosophy.md`: reusable engineering posture.
-- `doc/decisions.md`: concise Accepted-decision map.
-- `doc/adr/`: architectural decision records and their reasoning.
-- `doc/threat-modeling.md`: reusable threat-modeling exercise and Mermaid diagram
-  template.
-- `doc/reference/`: generated Doxygen output; never commit it.
-- `vendor/`: generated dependency state managed by bashdeps; never commit it.
-- `dist/`: generated release artifacts; never edit them directly.
-- `test-results/`: generated JUnit reports.
+The repository is being adapted from template-bash into the standalone figurectl
+product.
 
-## Build and Dependency Boundaries
+The governance/specification work defines the intended compatibility target before
+runtime migration.  Until the implementation extraction lands, inherited template
+runtime behavior may still exist in `src/` and `lib/`; do not treat that starter
+behavior as figurectl's public contract merely because it is executable.
 
-`make` is the canonical local and CI orchestration interface.
+The compatibility baseline is the figure-processing behavior originally maintained
+as `scripts/figurectl.bash` in `wesley-dean/writing`.
 
-- `make deps` may access the network and may repair script/library/asset
-  dependency state.
-- `make deps-check` is offline and verifies prepared dependency state.
-- `make build` is offline and consumes prepared dependency state.
-- `make all` runs `deps` and then `build`, so `all` may use the network.
-- `make docs` is offline and consumes the prepared Doxygen filter.
-- bashdeps manages repository dependencies such as scripts, libraries, and
-  assets.  It does not install system tools or operating-system packages.
+## Public Contract
 
-Dependency acquisition integrity and dependency trust are separate concerns.
-Pinning and checksums can establish that expected bytes were acquired; they do not
-prove that a dependency is behaviorally safe, appropriately scoped, or entitled
-to the authority and data the project gives it.
+The initial public commands are:
 
-Every dependency expands the trusted computing base.  Review new dependencies for
-execution context, data exposure, inherited authority, input trust, side effects,
-transitive surface, supply-chain posture, failure behavior, and removal cost.
-Build, CI, documentation, and release dependencies remain security-relevant when
-they can affect source, generated artifacts, credentials, tags, attestations, or
-publication.
+```text
+select
+render
+replace
+process
+```
 
-See ADR-003 and ADR-005 for orchestration and acquisition boundaries.  See ADR-015
-for dependency trust and attack-surface review.  See ADR-006 and ADR-012 for the
-release-artifact and checksum-companion contract.
+The initial authored source formats are `text` and `dot`.  Requested outputs are
+`text`, `dot`, `svg`, and `png`, with SVG/PNG derived from DOT.
+
+The source form is an HTML metadata comment immediately followed by a native
+fenced code block.  Metadata stays outside the payload.  Ordinary Markdown outside
+recognized figure declarations passes through unchanged.
+
+See `doc/specification.md` and ADR-017.
 
 ## Source and Plugin Architecture
 
-The starter release artifact is assembled from an explicit core source order plus
-lexically sorted files under `lib/plugins/`.  The example plugin files register
-themselves through the plugin registry.
+The intended maintained implementation is responsibility-focused Bash plus portable
+AWK.
 
-Do not mistake that executable example for a universal architecture.  The broadly
-reusable lesson is responsibility-focused maintained source, explicit ordering
-where order is semantically important, deterministic additive assembly, and
-standalone consumer artifacts.
+Core source ordering is explicit.  Input/output modules that are genuinely
+additive may be discovered deterministically during build.
 
-A derived project may retain the runtime registry, remove it and call assembled
-functions directly, reinterpret additive modules, enumerate every module
-explicitly, or remove plugin discovery entirely when those choices better fit the
-product.  Runtime dynamic loading, filesystem scanning, or third-party extension
-is a separate architectural decision and must not be inferred from modular source
-alone.
+Plugin discovery is **build-time only**.  Generated artifacts contain every
+implementation they support.
 
-The noop plugin is teaching material.  Derived projects should adapt or remove it
-when it no longer represents useful product behavior.
+Do not add runtime plugin directory scanning, dynamic sourcing, hot loading,
+third-party plugin installation paths, or arbitrary plugin search paths.  Any
+external runtime plugin mechanism requires a new ADR because it changes trust,
+distribution, and compatibility boundaries.
 
-See ADR-004 and ADR-014.
+See ADR-014 and ADR-018.
 
-## Engineering Philosophy
+## Bash and AWK Portability
 
-When no more specific ADR governs, prefer designs that:
+The Bash compatibility floor is 4.3 unless a later Accepted ADR raises it.
+Do not use post-4.3 Bash features accidentally.
 
-- respect developer agency rather than guessing application policy;
-- make important behavior explicit at the call site or in bounded configuration;
-- follow UNIX composition principles through ordinary text interfaces, useful exit
-  status, and clear stdout/stderr responsibilities;
-- define contracts before mechanisms;
-- state both promises and non-promises;
-- keep public surfaces conservative;
-- separate semantics, presentation, transport, persistence, and orchestration
-  where those boundaries matter;
-- remain readable and auditable without `eval`, generated-source tricks, or
-  obscurity posing as encapsulation;
-- acknowledge Bash runtime limitations instead of manufacturing guarantees the
-  runtime does not provide; and
-- preserve durable invariants rather than mutable documentation snapshots.
+Maintained AWK is portable AWK unless governing documentation explicitly records
+an implementation-specific dependency.  Do not introduce gawk-only, mawk-only,
+or BusyBox-specific behavior without surfacing the compatibility change.
 
-See `doc/engineering-philosophy.md`.
+Graphviz `dot` is a conditional runtime dependency for SVG/PNG rendering only.
 
-## Threat Modeling and Security-Sensitive Work
+## Documentation Standards
 
-Perform explicit threat-model review when a change materially alters sensitive
-data handling, untrusted-input parsing, destructive or privileged operations,
-network access, dependencies, dynamic loading, subprocess authority, logging or
-output sinks, persistence, build transformations, CI/release authority, or a
-security/privacy claim.
+Maintained Bash follows `doc/documentation-standard.md` and ADR-007.
 
-Threat modeling should identify at least:
+Maintained AWK follows `doc/awk-documentation-standard.md` and ADR-019.  In
+particular:
 
-- security objectives and assets;
-- trusted computing base;
-- trust boundaries and meaningful data/authority flows;
-- threat actors and ordinary failure sources;
-- mitigations and supporting evidence;
-- residual risk and explicit non-goals; and
-- conditions that should trigger another review.
+- use `##` Doxygen blocks;
+- document files with `@file`, `@brief`, and substantive `@details`;
+- document AWK functions with `@fn`, `@param`, `@local`, stream behavior, and
+  `@returns` according to the standard;
+- use `@var` for significant project-owned global state where useful;
+- use stable `@rule` identities for important `BEGIN`, `END`, and pattern/action
+  rules;
+- document record context, global-state lifecycle, regex interpretation,
+  `getline`, file access, subprocess behavior, and portability assumptions when
+  relevant.
 
-A threat model is not a blanket claim that a project is secure.  Its purpose is to
-make assumptions and changes in trust visible.  Mermaid is the preferred format
-for maintained GitHub Markdown trust-boundary diagrams because the diagram source
-remains reviewable text; DOT remains appropriate when Graphviz-specific output is
-needed.
+The `awk-doxygen` filter is being developed separately.  Lack of generated AWK
+reference output does not relax the maintained-source documentation standard.
 
-See ADR-016 and `doc/threat-modeling.md`.
+## Build and Dependency Boundaries
 
-## Documentation Standard
+GNU Make is the canonical development/CI orchestration surface.
 
-Bash source is documentation-first and intentionally verbose.  Doxygen comments
-are architecture at implementation scope, not decorative prose.  Every Doxygen
-comment line begins with `##`.  File and function blocks should explain intent,
-contracts, assumptions, failure behavior, and examples with enough detail that a
-future maintainer can recover reasoning without guessing from code alone.
+- `make deps` may access the network and repair repository dependency state.
+- `make deps-check` verifies prepared dependency state offline.
+- `make build` consumes maintained source and prepared dependencies without
+  synchronizing dependencies.
+- `make all` runs `deps` then `build`.
+- `make docs`, `make test`, and `make test-report` consume prepared state and must
+  not silently synchronize dependencies.
 
-Do not reduce documentation merely to make maintained source shorter.  The
-standard and minified consumer artifacts remove comment-only lines; the
-`.dev.bash` artifact intentionally retains them.
+bashdeps manages repository dependencies, not system packages.  Build/runtime
+system commands such as Make, Bash, AWK, Graphviz, Bats, Doxygen, ShellCheck, and
+shfmt remain outside bashdeps package-management scope.
 
-See ADR-007, ADR-008, and `doc/documentation-standard.md`.
+## Release Artifacts
 
-## Validation
+The intended release files are:
 
-Use the smallest relevant set first, then the full project contract:
+```text
+dist/figurectl.dev.bash
+dist/figurectl.dev.bash.sha256
+dist/figurectl.bash
+dist/figurectl.bash.sha256
+dist/figurectl.min.bash
+dist/figurectl.min.bash.sha256
+```
 
-- `make check`
-- `make test`
-- `make test-report`
-- `make docs`
-- `make deps-check`
+All executable flavors represent the same public program and must receive the
+same observable behavior suite.
 
-`make check` performs Bash syntax validation and ShellCheck against maintained
-Bash files.  `make format` uses the same shfmt arguments as MegaLinter:
-`-i 2 -bn -ci -sr -kp`.
+The ordinary `figurectl.bash` artifact is the conventional/default consumer
+artifact.  The development artifact retains documentation.  The minified artifact
+is derived from the ordinary artifact using prepared Bash-Minifier state.
 
-Behavior tests must exercise every shipped artifact flavor.  Generated release
-artifacts are public products and must not depend on `vendor/` at runtime.  Every
-current executable artifact must have a valid adjacent `.sha256` checksum
-companion, and a successful build must not retain a stale `.256` companion for
-the same artifact.
+Because the Bash artifact will contain embedded AWK source, tests must prove that
+assembly, comment stripping, and minification preserve behavior rather than
+assuming those transformations are harmless.
 
-Prefer durable testing invariants over hard-coded suite-count snapshots.  When a
-security contract includes absence or suppression, use negative assertions to
-prove forbidden output does not appear rather than checking only that an expected
-replacement or success value is present.
+## Testing
+
+Follow documentation-driven, test-second development under ADR-008.
+
+For consequential behavior:
+
+1. identify or create governing ADR/specification text;
+2. write or update source documentation contracts;
+3. add focused behavior tests;
+4. implement the smallest coherent change;
+5. validate all relevant artifact flavors; and
+6. compare the result back against the governing constraints.
+
+Tests should cover observable behavior rather than incidental source layout.
+Negative assertions are required where the contract says something must not
+occur, such as unsafe pathname use, unexpected diagnostics on stdout, runtime
+plugin discovery, or leakage of non-selected figure representations.
 
 ## Scope Discipline
 
-Prefer the smallest coherent change that satisfies the governing decision.  Do
-not mix unrelated cleanup into functional work.  Record useful but orthogonal
-ideas separately rather than expanding scope without acknowledgment.
+Prefer the smallest coherent change that satisfies governing decisions.  Do not
+mix unrelated cleanup into extraction work.
 
-When changing architecture, update or add an ADR before or with the
-implementation.  Update `doc/decisions.md` when the operative decision changes.
-After implementation, compare the result back against the same ADR constraints to
-catch locally correct architectural drift.
+The initial implementation migration should preserve behavior before improving the
+parser or changing public semantics.  Identified defects or cleanup opportunities
+should be handled as separate reviewable changes unless they block compatibility.
 
-Before releasing a derived project, review repository-facing documentation and
-GitHub templates for stale starter names, unrelated project references, broken
-links, or policies that no longer match the derived project's real contract.
+## Repository Locations
+
+- `src/`: product-facing Bash orchestration/entrypoint source.
+- `lib/`: maintained implementation modules.
+- `tests/`: Bats behavior tests and fixtures.
+- `doc/specification.md`: intended public figurectl contract.
+- `doc/decisions.md`: concise Accepted-decision map.
+- `doc/adr/`: full architectural decisions.
+- `doc/documentation-standard.md`: maintained Bash documentation standard.
+- `doc/awk-documentation-standard.md`: maintained AWK documentation standard.
+- `doc/threat-modeling.md`: security-analysis guidance.
+- `doc/reference/`: generated reference documentation; do not commit.
+- `vendor/`: generated dependency state; do not commit.
+- `dist/`: generated release artifacts; do not edit directly.
+- `test-results/`: generated JUnit reports.
