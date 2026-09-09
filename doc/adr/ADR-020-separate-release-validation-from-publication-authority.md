@@ -45,6 +45,8 @@ job can then verify the transferred bytes again before attestation and release.
 - Ensure the bytes published are the bytes that passed validation.
 - Make inter-job artifact transport explicit and verifiable.
 - Avoid introducing an external release service or long-lived credential.
+- Prevent manual dispatch from turning an arbitrary development ref into a
+  releasable source revision.
 - Keep the workflow understandable and auditable.
 
 ## Decision
@@ -52,6 +54,12 @@ job can then verify the transferred bytes again before attestation and release.
 ### Validation and publication are separate jobs
 
 The release workflow SHALL use a validation job and a publication job.
+
+The release path SHALL execute only for the repository's `main` ref.  Automatic
+push execution is limited to `main`, and a manually dispatched workflow from
+another ref SHALL NOT validate or publish a release.  Development branches may be
+validated through ordinary pull-request CI without gaining a release path merely
+because `workflow_dispatch` exists.
 
 The validation job SHALL have read-only repository-content permission.  It SHALL:
 
@@ -131,6 +139,7 @@ environment.
 4. SVG and PNG behavior is exercised in release validation with Graphviz present.
 5. Inter-job workflow-artifact transport is followed by checksum verification
    before publication.
+6. A manual dispatch from a non-`main` ref does not become a release path.
 
 ## Non-Promises
 
@@ -156,6 +165,8 @@ This decision considers:
   the enclosing job possesses write authority;
 - a compromised Graphviz or other validation subprocess inheriting more GitHub
   authority than its task requires;
+- a maintainer accidentally dispatching release automation from a development
+  branch;
 - validation succeeding but inter-job artifact transport producing missing or
   altered files;
 - publication steps running with stale or independently rebuilt bytes;
@@ -175,6 +186,7 @@ change the late-tagging contract.
 
 ## Operational Constraints
 
+- The release path MUST execute only from `main`.
 - Release validation and publication MUST execute in separate jobs.
 - Validation MUST use read-only repository-content permission.
 - Validation MUST calculate the version with `create_tag: false`.
@@ -204,6 +216,14 @@ This avoids inter-job artifact transport.  It was rejected because publication
 would no longer use the exact bytes that passed the validation job and would
 require build dependencies to execute with publication authority.
 
+### Allow manual release dispatch from any ref
+
+This is convenient for testing release automation or publishing from maintenance
+branches.  It was rejected for the initial release model because it creates a
+second source-of-release truth beyond `main` and makes accidental branch
+publication easier.  A future maintenance-branch release policy can revisit that
+boundary explicitly if a real need appears.
+
 ### Create the tag before validation and build from the tag
 
 This gives a convenient immutable-looking input reference.  It remains rejected
@@ -225,7 +245,8 @@ the pinned upload/download actions become explicit release dependencies.
 
 In return, the larger validation surface runs with substantially less publication
 authority, and the publication job becomes small enough to inspect as a distinct
-trust boundary.
+trust boundary.  Maintainers also cannot use manual dispatch from a development
+branch as an accidental shortcut around the normal `main` release source.
 
 ## Source Lineage
 
