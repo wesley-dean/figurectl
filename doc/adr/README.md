@@ -14,7 +14,7 @@ The repository uses a layered documentation model:
 - `doc/decisions.md` provides a concise discovery map of Accepted decisions.
 - `AGENTS.md` is a concise operational map that points back to the governing
   ADRs rather than repeating their reasoning.
-- A project specification, when needed, describes current observable behavior.
+- `doc/specification.md` describes the intended observable figurectl contract.
 - `doc/threat-modeling.md` provides a reusable exercise for exposing assets, trust
   boundaries, dependency risk, mitigations, and residual risk.
 - Doxygen comments preserve local implementation contracts and reasoning near
@@ -48,8 +48,17 @@ sections do not replace the surrounding rationale.
 - ADR-014: Modularity as Maintenance and Assembly Architecture
 - ADR-015: Dependencies as Explicit Attack Surface
 - ADR-016: Explicit Threat Modeling for Security-Relevant Changes
+- ADR-017: Figure Source Representation and Processing Pipeline
+- ADR-018: Build-Time Input and Output Plugin Architecture
+- ADR-019: Adopt the AWK Documentation Standard
 
-ADR-014 refines how derived projects should interpret ADR-004: modular maintained
-source and deterministic assembly are reusable architectural lessons, while the
-starter's runtime registry and noop plugin remain an example to evaluate rather
-than a universal requirement.
+ADR-014 refines how figurectl interprets the inherited ADR-004: modular maintained
+source and deterministic assembly remain reusable architectural lessons, while
+runtime registry behavior is product-specific.  ADR-018 then establishes the
+figurectl-specific choice: input/output modules are discovered only during build
+and are embedded into standalone artifacts; external runtime plugins are not
+supported.
+
+ADR-017 is adapted from `wesley-dean/writing` ADR-035.  The writing ADR remains
+historical governance for that repository, while figurectl owns the reusable
+figure-processing contract going forward.

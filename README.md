@@ -1,220 +1,238 @@
-# Bash Starter Repository
+# figurectl
 
-This repository is a starter for maintainable, documented, tested, and
-releasable Bash projects.  It consolidates engineering patterns proven across
-adrctl, bashdeps, Bootstrap, mktext, and bashlog while keeping the starter small
-enough to adapt rather than turning it into a framework.
+`figurectl` is a Bash/AWK tool for selecting, rendering, and replacing paired
+figure representations embedded in ordinary Markdown.
 
-The maintained source is modular.  `make build` assembles that source into three
-standalone consumer representations.  The starter also demonstrates deterministic
-plugin discovery and runtime registration, but that plugin model is an example to
-evaluate rather than a requirement every derived project should preserve.
+The project is being extracted from the figure-processing implementation in
+`wesley-dean/writing`.  The standalone product preserves that implementation's
+public command surface and figure syntax while moving the behavior into a
+modular, documented, tested, independently released project.
 
-## Adapt the Starter
+The maintained source will be modular; releases will remain standalone Bash
+artifacts.  Built-in input/output implementations are discovered only during the
+build and embedded into the generated executable.  Runtime external plugins are
+not supported.
 
-A new project should normally begin by changing `PROJECT_NAME` in the Makefile,
-replacing the example CLI and noop behavior as appropriate, and reviewing the
-starter ADRs to decide which decisions remain applicable.  `PROJECT_NAME` must
-be one non-empty whitespace-free word; conventional names such as `my-tool`,
-`my_tool`, or `my.tool` keep generated filenames and Make targets predictable.
-Maintained Bash source filenames, including plugin filenames under
-`lib/plugins/`, must also be whitespace-free as documented by ADR-004.
+> [!NOTE]
+> The repository is currently in the governance/specification phase of the
+> extraction.  `doc/specification.md` describes the compatibility target, while
+> the inherited template executable remains in place until the implementation
+> migration lands in a subsequent pull request.
 
-The CI and release workflows discover generated Bash artifacts from `dist/`
-rather than hard-code `template-bash`, so changing `PROJECT_NAME` does not
-require corresponding artifact-name edits in those workflows.
+## Intended v1.0 Behavior
 
-Delete starter behavior that does not belong in the derived project; do not
-preserve it merely because it came from the template.  The template intentionally
-provides starter files rather than placeholder-only empty directories.
+The public command surface is:
 
-Before a derived project's first release, review repository-facing files such as
-`README.md`, `CONTRIBUTING.md`, `SUPPORT.md`, `SECURITY.md`, issue templates, and
-the pull-request template.  These are part of the project surface and should not
-retain stale template names, unrelated links, or policies copied from another
-repository.
+```text
+figurectl.bash select  --format FORMAT [INPUT]
+figurectl.bash render  --format FORMAT --figures-dir DIR [--dot-style FILE] [INPUT]
+figurectl.bash replace --format FORMAT --figures-dir DIR [--link-prefix PATH] [INPUT]
+figurectl.bash process --format FORMAT --figures-dir DIR [--dot-style FILE] [--link-prefix PATH] [--output FILE] [INPUT]
+```
 
-## Engineering Posture
+The initial authored source formats are:
 
-The reusable engineering philosophy is documented in
-[`doc/engineering-philosophy.md`](doc/engineering-philosophy.md).  It is guidance
-for areas where a more specific Accepted ADR does not already govern.
+```text
+text
+dot
+```
 
-Recurring principles include:
+The initial requested output formats are:
 
-- respect developer agency and make important policy choices explicit;
-- prefer bounded contracts and explicit APIs over hidden inference;
-- state both promises and non-promises for consequential behavior;
-- apply UNIX composition principles deliberately rather than ceremonially;
-- keep stdout, stderr, files, exit status, and side effects intentional;
-- treat readability and auditability as correctness properties;
-- distinguish modular maintained source from product-specific runtime plugin
-  architecture;
-- keep public surfaces conservative;
-- treat every dependency as an expansion of the trusted computing base and a new
-  attack surface;
-- make network and external-command boundaries visible; and
-- avoid claiming boundaries the Bash runtime does not actually provide.
+```text
+text
+dot
+svg
+png
+```
 
-These principles are not substitutes for project-specific decisions.  When a
-derived project needs a different contract, record the divergence rather than
-preserving a starter convention by inertia.
+The output-to-source mapping is:
 
-## Threat Modeling
+```text
+requested output    selected source
+----------------    ---------------
+text                text
+dot                 dot
+svg                 dot
+png                 dot
+```
 
-[`doc/threat-modeling.md`](doc/threat-modeling.md) provides a reusable exercise for
-projects that handle sensitive data, untrusted input, destructive operations,
-privileged files, network access, release credentials, dynamic loading, or other
-security-relevant authority.
+SVG and PNG are derived from Graphviz DOT.  Graphviz `dot` is therefore a
+conditional runtime dependency required only for graphical rendering.
 
-The exercise asks projects to identify assets, trusted computing base, trust
-boundaries, data and authority flows, threat actors and failure sources,
-mitigations, evidence, residual risk, and review triggers.  It includes a Mermaid
-trust-boundary diagram template so maintained Markdown can keep architecture and
-security reasoning reviewable as text.
+See [`doc/specification.md`](doc/specification.md) for the complete intended
+observable contract.
 
-Threat modeling is not a blanket declaration that a project is secure.  Its value
-is making assumptions and changes in trust or authority visible before they are
-normalized as ordinary implementation details.
+## Figure Source Form
+
+A figure representation consists of an HTML metadata comment immediately followed
+by an ordinary fenced code block:
+
+````markdown
+<!-- figure id="example-flow" format="text"
+     alt="Example processing flow" -->
+```text
+input -> process -> output
+```
+
+<!-- figure id="example-flow" format="dot"
+     alt="Example processing flow" -->
+```dot
+digraph {
+  input -> process -> output;
+}
+```
+````
+
+Metadata is kept out of the payload so ordinary Markdown remains readable and
+payload text may safely contain sequences such as `-->`.
+
+Text and DOT representations sharing an identifier describe the same conceptual
+figure.  The tool does not claim to prove semantic equivalence between arbitrary
+representations; that remains an author/reviewer obligation.
+
+## Processing Model
+
+figurectl preserves three conceptual responsibilities:
+
+```text
+Markdown
+   |
+   v
+select
+   |
+   v
+render
+   |
+   v
+replace
+   |
+   v
+ordinary Markdown
+```
+
+`process` performs the complete sequence.  The individual commands remain public
+for testing, inspection, and composition.
+
+The phases are architectural responsibilities, not a requirement for separate
+executables or a fixed number of physical parsing passes.
+
+## Source and Plugin Architecture
+
+The standalone implementation will use responsibility-focused Bash and portable
+AWK source modules.
+
+Core source ordering is explicit.  Genuinely additive input/output modules may be
+discovered deterministically during `make build`.  Every supported implementation
+is embedded into the release artifact before publication.
+
+The initial project has no runtime plugin discovery, plugin search path, dynamic
+sourcing, hot loading, or third-party plugin installation API.  Adding such a
+mechanism would change the runtime trust and compatibility boundary and requires a
+new architectural decision.
+
+See ADR-018 for the governing decision.
+
+## Runtime and Portability
+
+The intended v1.0 runtime baseline is:
+
+- Bash 4.3 or newer;
+- portable AWK; and
+- Graphviz `dot` only when SVG or PNG output is requested.
+
+A newer Bash floor may be considered if a concrete Bash 5.x feature materially
+improves correctness, security, readability, or maintainability.  The project does
+not raise the compatibility floor merely for convenience.
+
+AWK implementation-specific behavior must be identified explicitly rather than
+silently weakening the portable-AWK contract.
 
 ## Build Lifecycle
 
-The canonical orchestration interface is Make:
+GNU Make is the canonical development and CI orchestration surface:
 
 - `make deps` synchronizes repository dependencies and may use the network.
 - `make deps-check` verifies prepared dependency state offline.
-- `make build` creates release artifacts from maintained source and prepared
-  dependencies without synchronizing dependencies.
-- `make all` runs `deps` and then `build`, so it may use the network.
-- `make check` runs Bash syntax validation and ShellCheck.
-- `make format` runs shfmt with `-i 2 -bn -ci -sr -kp`.
-- `make test` runs Bats against every artifact flavor.
+- `make build` builds release artifacts from maintained source and prepared
+  dependency state without synchronizing dependencies.
+- `make all` runs `deps` and then `build`.
+- `make check` validates maintained source with the configured static-analysis
+  tooling.
+- `make format` applies the repository's formatting policy.
+- `make test` runs behavior tests against every shipped artifact flavor.
 - `make test-report` writes JUnit reports under `test-results/`.
-- `make docs` generates Doxygen HTML under `doc/reference/` from prepared
-  dependency state.
-- `make clean` removes build, test-report, and reference-documentation output.
+- `make docs` generates reference documentation from prepared documentation
+  tooling.
+- `make clean` removes generated build/test/reference output.
 - `make distclean` additionally removes prepared repository dependencies.
 
-Repository dependencies are scripts, libraries, filters, and assets.  bashdeps
-does not install system tools or operating-system packages.  The Makefile
-bootstraps only bashdeps directly; bashdeps manages Bash-Minifier and the
-bash-doxygen filter through `dependencies.txt`.
-
-Dependency acquisition and dependency trust are distinct questions.  Pinning and
-checksums help establish that expected bytes were acquired; they do not establish
-that those bytes are behaviorally safe or appropriately trusted with project data
-and authority.  See ADR-005 and ADR-015.
-
-## Source Modularity
-
-The starter demonstrates an explicit core source order plus deterministic
-additive discovery under `lib/plugins/`.  The more general architectural lesson is
-that maintained implementation should be split into responsibility-focused
-modules, semantically important ordering should remain explicit, and assembled
-consumer artifacts should remain deterministic and standalone.
-
-The runtime registry and noop plugin are teaching material for projects that need
-name-to-implementation dispatch.  A derived project may remove the registry,
-reinterpret additive modules, enumerate every module explicitly, or eliminate
-plugin discovery when direct functions are clearer.  Modularity does not imply a
-runtime extension system.
-
-See ADR-004 and ADR-014.
+`make` is a build/development dependency.  Consumers of released `figurectl`
+artifacts do not need Make.
 
 ## Release Artifacts
 
-For the default project name, `make build` produces:
+The project retains the template's three-flavor release model:
 
 ```text
-dist/template-bash.dev.bash
-dist/template-bash.dev.bash.sha256
-dist/template-bash.bash
-dist/template-bash.bash.sha256
-dist/template-bash.min.bash
-dist/template-bash.min.bash.sha256
+dist/figurectl.dev.bash
+dist/figurectl.bash
+dist/figurectl.min.bash
 ```
 
-The `.sha256` files use conventional SHA-256 checksum-file syntax.  New builds
-and releases publish only `.sha256` checksum companions.  Historical releases
-that contain `.256` companions remain valid for those release versions; consumers
-that automate across release generations should prefer `.sha256` and use `.256`
-only when the preferred companion is confirmed absent.
+Each executable has an adjacent `.sha256` checksum companion.
 
-The development artifact retains the verbose Doxygen commentary used for
-maintenance.  The ordinary artifact removes full-line comments while preserving
-the shebang and behavior.  The minified artifact is derived from the ordinary
-artifact with the pinned Bash-Minifier dependency.  All three include executable
-version, build-date, and build-commit provenance and are expected to satisfy the
-same behavior tests.
+- `figurectl.dev.bash` retains assembled source documentation.
+- `figurectl.bash` is the conventional/default consumer artifact.
+- `figurectl.min.bash` is derived from the ordinary artifact using the pinned
+  Bash-Minifier build dependency.
 
-For reproducibility, the default build date comes from the current Git commit
-rather than the wall clock.  Local builds made while maintained source is dirty
-mark the build commit with a `-dirty` suffix so generated provenance does not
-imply that modified bytes came solely from the named commit.
+Every shipped executable flavor must satisfy the same observable behavior suite.
+This is particularly important because the generated Bash artifact will contain
+embedded AWK source and therefore passes through multiple source-to-source build
+transformations.
 
-## Documentation and Architectural Decisions
+## Documentation
 
-This project deliberately treats documentation as part of the engineering
-architecture.  Different documents have different jobs:
+The project uses documentation-driven, test-second development.
 
-- `README.md` provides public orientation and starter lifecycle guidance;
-- `doc/engineering-philosophy.md` summarizes reusable engineering posture;
-- `doc/decisions.md` provides a concise architectural discovery map;
-- ADRs under `doc/adr/` preserve durable reasoning, alternatives, tradeoffs,
-  consequences, and operational constraints;
-- a project specification describes normative observable behavior when a derived
-  project needs one;
-- `doc/threat-modeling.md` provides a reusable security-analysis exercise;
-- `AGENTS.md` is the concise contributor-oriented operational map;
-- maintained Bash follows the normative Doxygen standard in
-  `doc/documentation-standard.md`; and
-- tests provide executable evidence for documented contracts.
+- [`doc/specification.md`](doc/specification.md) defines intended observable
+  figurectl behavior.
+- [`doc/decisions.md`](doc/decisions.md) is the concise architecture map.
+- [`doc/adr/`](doc/adr/) preserves architectural reasoning and tradeoffs.
+- [`doc/engineering-philosophy.md`](doc/engineering-philosophy.md) records reusable
+  engineering posture where no specific ADR governs.
+- [`doc/documentation-standard.md`](doc/documentation-standard.md) governs
+  maintained Bash documentation.
+- [`doc/awk-documentation-standard.md`](doc/awk-documentation-standard.md) governs
+  maintained AWK documentation.
+- [`doc/testing.md`](doc/testing.md) defines testing expectations.
+- [`doc/release-verification.md`](doc/release-verification.md) defines release
+  verification sequencing.
 
-Generated Doxygen output is written to `doc/reference/` and is not committed.
+The AWK documentation standard is intentionally language-specific.  It documents
+AWK function returns, pseudo-local formal parameters, global state, record
+context, and `BEGIN`/`END`/pattern-action rules rather than mechanically applying
+Bash semantics to AWK.
 
-ADR-012 defines the current `.sha256` checksum companion naming and historical
-`.256` read-compatibility policy.  ADR-013 treats repository-facing documentation
-as maintained product surface.  ADR-014 separates modular source assembly from
-runtime plugin architecture.  ADR-015 treats dependencies as explicit attack
-surface.  ADR-016 establishes threat-modeling expectations for security-relevant
-changes.
+The `awk-doxygen` filter is being developed separately.  Maintained AWK source
+follows the standard regardless of whether generated AWK reference documentation
+is available yet.
 
-See `doc/adr/README.md` for the complete ADR index.
+## Architecture Lineage
 
-## Testing
+The figure source and processing model is adapted from
+`wesley-dean/writing` ADR-035, which remains historical governance for the writing
+repository.  figurectl ADR-017 extracts the reusable behavior while leaving
+writing-specific typography, publisher policy, and manuscript governance in the
+writing repository.
 
-Bats tests live under `tests/` and are intentionally behavior-oriented.  The
-starter tests its example help/version interface, plugin discovery and dispatch,
-artifact executability, checksum companions, and invalid input behavior.  A
-derived project should add focused tests for its real contracts rather than grow
-a few oversized fixtures.
+The generalized built-in input/output architecture deliberately differs from the
+original local-script decision to avoid a plugin framework.  figurectl ADR-018
+records why the standalone product now chooses deterministic build-time extension
+while preserving a single-file runtime boundary.
 
-The default compatibility floor is Bash 4.3.  Release CI should validate
-representative behavior under that version in addition to the primary runner.
+## License
 
-Security-sensitive behavior should use negative assertions where appropriate.
-Proving that an expected value appears is not enough when the contract also
-requires that sensitive, unsafe, or forbidden output never appears elsewhere.
-
-## Releases and Conventional Commits
-
-The release workflow uses Conventional Commits with
-`bitshifted/git-auto-semver`.  `feat` increments the minor version,
-`BREAKING CHANGE` increments the major version, and supported maintenance commit
-types increment the patch version.  The workflow calculates the version without
-creating a tag, validates and attests the exact release artifacts, and creates
-the release/tag only after validation succeeds.
-
-## Existing Repository Tooling
-
-The upstream template's MegaLinter, CodeQL, Scorecard, Dependabot, issue
-management, and related configuration is intentionally retained unless it
-conflicts with the Bash build architecture.  Projects may tune those controls to
-match repository visibility and available GitHub features.
-
-## License and Contributions
-
-This project is dedicated to the public domain under CC0 1.0 Universal.  See
-`LICENSE` and `CONTRIBUTING.md` for details, `SUPPORT.md` for ordinary support,
-`SECURITY.md` for vulnerability reporting, and `CODE_OF_CONDUCT.md` for the
-project's expectations for respectful collaboration.
+figurectl is dedicated to the public domain under CC0 1.0 Universal.  See
+[`LICENSE`](LICENSE).

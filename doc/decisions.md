@@ -1,13 +1,14 @@
 # Architectural Decisions
 
-This document is a concise map of template-bash's Architecture Decision Records.
-It is a discovery aid, not a substitute for the ADR corpus.  When a summary and a
+This document is a concise map of figurectl's Architecture Decision Records.  It
+is a discovery aid, not a substitute for the ADR corpus.  When a summary and a
 governing ADR appear to conflict, read the ADR and surface the conflict rather
 than silently choosing the shorter wording.
 
 The reusable engineering posture behind these decisions is summarized separately
 in [`doc/engineering-philosophy.md`](engineering-philosophy.md).  ADRs remain the
-binding architectural record when a concrete decision exists.
+binding architectural record when a concrete decision exists.  Current
+consumer-facing behavior is described in [`doc/specification.md`](specification.md).
 
 ## Accepted Decisions
 
@@ -15,7 +16,7 @@ binding architectural record when a concrete decision exists.
 
 Accuracy, explicit capability limits, evidence-oriented reasoning, separation of
 concerns, and resistance to performative agreement are foundational project
-constraints.  The template prefers truthful, reviewable boundaries over claims
+constraints.  The project prefers truthful, reviewable boundaries over claims
 made mainly to sound helpful or complete.
 
 See [ADR-000](adr/ADR-000-capability-scope-and-epistemic-honesty.md).
@@ -31,7 +32,7 @@ See [ADR-001](adr/ADR-001-documentation-and-decision-hierarchy.md).
 
 ### ADR-002: Bash Runtime and Portability Baseline
 
-The starter targets Bash 4.3 or newer and avoids newer runtime features unless a
+figurectl targets Bash 4.3 or newer and avoids newer runtime features unless a
 later decision intentionally raises the floor.  Portability should be revisited
 when a newer Bash version materially improves correctness, security, readability,
 or auditability rather than merely convenience.
@@ -48,13 +49,15 @@ See [ADR-003](adr/ADR-003-make-as-canonical-orchestration-interface.md).
 
 ### ADR-004: Modular Source Assembly and Automatically Discovered Plugins
 
-The starter demonstrates explicit core source ordering plus deterministic lexical
-plugin discovery and runtime registration.  ADR-014 clarifies that the runtime
-registry/noop model is executable starter behavior rather than a requirement that
-every derived project must preserve.
+The inherited template establishes explicit core source ordering plus
+deterministic lexical plugin discovery.  ADR-014 clarifies that runtime registry
+behavior is product-specific; ADR-018 specializes the model for figurectl by
+requiring build-time-only discovery of built-in input/output modules and forbidding
+runtime external plugin loading in the initial product.
 
-See [ADR-004](adr/ADR-004-modular-source-and-plugin-discovery.md) and
-[ADR-014](adr/ADR-014-modularity-as-maintenance-and-assembly-architecture.md).
+See [ADR-004](adr/ADR-004-modular-source-and-plugin-discovery.md),
+[ADR-014](adr/ADR-014-modularity-as-maintenance-and-assembly-architecture.md), and
+[ADR-018](adr/ADR-018-build-time-input-output-plugin-architecture.md).
 
 ### ADR-005: Dependency Management and Explicit Network Boundaries
 
@@ -78,9 +81,11 @@ See [ADR-006](adr/ADR-006-release-artifact-flavors-and-metadata.md).
 Maintained Bash uses the exact bash-doxygen-compatible `##` Doxygen model.  Source
 documentation is intentionally verbose enough to preserve implementation
 contracts, assumptions, edge cases, failure behavior, and examples near the code
-they govern.
+they govern.  ADR-019 adds a complementary AWK-specific standard for maintained
+AWK source.
 
-See [ADR-007](adr/ADR-007-doxygen-verbose-source-documentation.md).
+See [ADR-007](adr/ADR-007-doxygen-verbose-source-documentation.md) and
+[ADR-019](adr/ADR-019-adopt-awk-documentation-standard.md).
 
 ### ADR-008: Documentation-Driven, Test-Second Development
 
@@ -103,9 +108,12 @@ See [ADR-009](adr/ADR-009-observable-behavior-testing.md).
 
 Doxygen reference output is generated from maintained source comments and is not
 committed.  Maintained comments and ADRs remain authoritative while generated
-reference documentation may be rebuilt or published by automation.
+reference documentation may be rebuilt or published by automation.  AWK source
+will follow the same maintained-source-first model when awk-doxygen becomes an
+available prepared dependency.
 
-See [ADR-010](adr/ADR-010-generated-reference-documentation.md).
+See [ADR-010](adr/ADR-010-generated-reference-documentation.md) and
+[ADR-019](adr/ADR-019-adopt-awk-documentation-standard.md).
 
 ### ADR-011: Conventional-Commit Semantic Releases and Late Tagging
 
@@ -126,12 +134,10 @@ See [ADR-012](adr/ADR-012-standardize-sha256-checksum-companion-filenames.md).
 
 ### ADR-013: Repository-Facing Documentation and Template Hygiene
 
-Repository-facing documentation and GitHub templates are maintained starter
-assets, not disposable boilerplate.  The template provides a concise decision
-map, richer ADR prompts for consequential decisions, Bash-oriented support and
-issue guidance, coordinated security-disclosure wording, and documentation
-freshness rules that avoid unrelated-project residue and needless mutable
-snapshots.
+Repository-facing documentation and GitHub templates are maintained product
+surface, not disposable boilerplate.  Derived-project documentation must remove
+stale template identity and accurately describe the real runtime, support,
+security, and contribution contract.
 
 See [ADR-013](adr/ADR-013-repository-facing-documentation-and-template-hygiene.md).
 
@@ -139,9 +145,9 @@ See [ADR-013](adr/ADR-013-repository-facing-documentation-and-template-hygiene.m
 
 The reusable modularity pattern is responsibility-focused maintained source,
 explicit core dependency order, deterministic additive assembly, and standalone
-consumer artifacts.  Runtime registries, noop plugins, dynamic loading, and other
-extension machinery remain product-specific choices rather than requirements
-implied by modular source.
+consumer artifacts.  Runtime registries, dynamic loading, and other extension
+machinery remain product-specific choices rather than requirements implied by
+modular source.
 
 See [ADR-014](adr/ADR-014-modularity-as-maintenance-and-assembly-architecture.md).
 
@@ -158,13 +164,45 @@ See [ADR-015](adr/ADR-015-dependencies-as-explicit-attack-surface.md).
 
 ### ADR-016: Explicit Threat Modeling for Security-Relevant Changes
 
-Projects derived from the starter should perform and preserve an explicit threat
-model when their domain handles sensitive data, untrusted input, destructive or
-privileged operations, network authority, release credentials, dynamic loading,
-or similar security-relevant boundaries.  Threat modeling identifies assets,
-trusted computing base, data and authority flows, mitigations, evidence, residual
-risk, and review triggers.  The exercise is intended to expose assumptions rather
-than manufacture a blanket claim that a project is secure.
+figurectl should perform and preserve explicit threat-model review when changes
+alter untrusted-input parsing, filesystem output, subprocess authority, dynamic
+loading, dependency trust, build transformations, or related security-relevant
+boundaries.  Threat modeling exposes assumptions rather than manufacturing a
+blanket security claim.
 
 See [ADR-016](adr/ADR-016-explicit-threat-modeling-for-security-relevant-changes.md)
 and [`doc/threat-modeling.md`](threat-modeling.md).
+
+### ADR-017: Figure Source Representation and Processing Pipeline
+
+figurectl preserves the writing project's metadata-comment-plus-fenced-payload
+source form and the conceptual select-render-replace pipeline.  Authored source
+formats are initially text and DOT; requested outputs are text, DOT, SVG, and PNG,
+with SVG/PNG derived from DOT.  Graphviz styling remains caller-owned policy, and
+semantic equivalence between paired text/DOT representations remains a review
+obligation rather than a falsely automated guarantee.
+
+See [ADR-017](adr/ADR-017-figure-source-and-processing-pipeline.md) and
+[`doc/specification.md`](specification.md).
+
+### ADR-018: Build-Time Input and Output Plugin Architecture
+
+Built-in input/output implementations are maintained as modular project source and
+discovered deterministically during build.  Every released artifact contains the
+implementations it supports and remains standalone; the initial product does not
+scan directories, dynamically source files, hot-load modules, or expose a
+third-party runtime plugin contract.  Any future external plugin mechanism
+requires a new decision covering trust and compatibility boundaries.
+
+See [ADR-018](adr/ADR-018-build-time-input-output-plugin-architecture.md).
+
+### ADR-019: Adopt the AWK Documentation Standard
+
+Maintained AWK follows `doc/awk-documentation-standard.md`, including AWK-specific
+contracts for functions, pseudo-locals, significant globals, record context, and
+`BEGIN`/`END`/pattern-action rules.  Portable AWK is the default portability claim
+unless another accepted decision explicitly changes it.  Maintained source remains
+authoritative even while the awk-doxygen filter is still being developed.
+
+See [ADR-019](adr/ADR-019-adopt-awk-documentation-standard.md) and
+[`doc/awk-documentation-standard.md`](awk-documentation-standard.md).
