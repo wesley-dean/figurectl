@@ -185,13 +185,14 @@ GNU Make is the canonical development and CI orchestration surface:
   flavor.
 - `make test-report` writes one JUnit report per artifact flavor under
   `test-results/`.
-- `make docs` generates reference documentation from prepared documentation
-  tooling.
+- `make docs` generates Bash and AWK reference documentation using prepared,
+  language-specific Doxygen filters.
 - `make clean` removes generated build/test/reference output.
 - `make distclean` additionally removes prepared repository dependencies.
 
 `make` is a build/development dependency.  Consumers of released `figurectl`
-artifacts do not need Make, bashdeps, Bash-Minifier, or the maintained source tree.
+artifacts do not need Make, bashdeps, Bash-Minifier, either Doxygen filter, or the
+maintained source tree.
 
 ## Release Artifacts
 
@@ -248,12 +249,12 @@ validated before they become generated filenames, and Graphviz/style input is
 passed as data rather than evaluated as Bash source.
 
 The project does not sandbox Graphviz or promise that arbitrary malicious DOT is
-safe to parse.  Build dependencies and runtime interpreters/renderers remain part
-of the trusted computing base according to their authority.  Release validation
-and publication are separated so the larger build/test surface does not
-intentionally inherit release-write or OIDC authority.
+safe to parse.  Build and documentation dependencies plus runtime
+interpreters/renderers remain part of the trusted computing base according to
+their authority.  Release validation and publication are separated so the larger
+build/test surface does not intentionally inherit release-write or OIDC authority.
 
-See [`doc/threat-model.md`](doc/threat-model.md), ADR-016, and ADR-020.
+See [`doc/threat-model.md`](doc/threat-model.md), ADR-015, ADR-016, and ADR-020.
 
 ## Documentation
 
@@ -277,10 +278,11 @@ The project uses documentation-driven, test-second development.
 - [`doc/release-verification.md`](doc/release-verification.md) defines release
   verification sequencing and authority boundaries.
 
-Maintained AWK follows its adopted documentation standard independently of
-reference-generation tooling.  Generated AWK reference documentation may be added
-once a suitable `awk-doxygen` release is deliberately selected, pinned, and
-reviewed as a repository dependency.
+`make docs` uses the pinned `bash-doxygen` filter for maintained Bash and the
+pinned `awk-doxygen` filter for maintained AWK.  Both are prepared through
+bashdeps; documentation generation itself does not synchronize dependencies.
+Generated reference output remains derivative of maintained source comments and
+ADRs.
 
 ## Architecture Lineage
 
