@@ -81,8 +81,8 @@ See [ADR-006](adr/ADR-006-release-artifact-flavors-and-metadata.md).
 Maintained Bash uses the exact bash-doxygen-compatible `##` Doxygen model.  Source
 documentation is intentionally verbose enough to preserve implementation
 contracts, assumptions, edge cases, failure behavior, and examples near the code
-they govern.  ADR-019 adds a complementary AWK-specific standard for maintained
-AWK source.
+they govern.  ADR-019 adds a complementary AWK-specific standard and filter path
+for maintained AWK source.
 
 See [ADR-007](adr/ADR-007-doxygen-verbose-source-documentation.md) and
 [ADR-019](adr/ADR-019-adopt-awk-documentation-standard.md).
@@ -98,7 +98,7 @@ See [ADR-008](adr/ADR-008-documentation-driven-test-second-development.md).
 
 ### ADR-009: Observable Behavior Testing Across Shipped Artifacts
 
-Bats is the default behavior-testing framework, and every shipped artifact flavor
+Bats is the default behavior test framework, and every shipped artifact flavor
 receives the same public behavior suite.  Tests should be focused enough that a
 failure normally identifies one primary contract.
 
@@ -108,9 +108,9 @@ See [ADR-009](adr/ADR-009-observable-behavior-testing.md).
 
 Doxygen reference output is generated from maintained source comments and is not
 committed.  Maintained comments and ADRs remain authoritative while generated
-reference documentation may be rebuilt or published by automation.  AWK source
-will follow the same maintained-source-first model when awk-doxygen becomes an
-available prepared dependency.
+reference documentation may be rebuilt or published by automation.  Bash and AWK
+source use separate prepared language-specific Doxygen filters under the same
+explicit dependency/network boundary.
 
 See [ADR-010](adr/ADR-010-generated-reference-documentation.md) and
 [ADR-019](adr/ADR-019-adopt-awk-documentation-standard.md).
@@ -204,8 +204,10 @@ See [ADR-018](adr/ADR-018-build-time-input-output-plugin-architecture.md).
 Maintained AWK follows `doc/awk-documentation-standard.md`, including AWK-specific
 contracts for functions, pseudo-locals, significant globals, record context, and
 `BEGIN`/`END`/pattern-action rules.  Portable AWK is the default portability claim
-unless another accepted decision explicitly changes it.  Maintained source remains
-authoritative even while the awk-doxygen filter is still being developed.
+unless another accepted decision explicitly changes it.  `make docs` uses the
+pinned `awk-doxygen` filter for AWK alongside the existing `bash-doxygen` filter
+for Bash, while maintained source remains authoritative over generated reference
+output.
 
 See [ADR-019](adr/ADR-019-adopt-awk-documentation-standard.md) and
 [`doc/awk-documentation-standard.md`](awk-documentation-standard.md).
