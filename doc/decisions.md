@@ -120,9 +120,12 @@ See [ADR-010](adr/ADR-010-generated-reference-documentation.md) and
 Release versions derive from Conventional Commits, and tags/releases are created
 only after the exact intended artifacts have passed checks, tests, checksum
 verification, compatibility validation, and attestation.  Publication is the
-result of successful validation rather than a prerequisite for it.
+result of successful validation rather than a prerequisite for it.  ADR-020
+further separates the read-only validation execution surface from privileged
+publication.
 
-See [ADR-011](adr/ADR-011-conventional-semver-and-late-tagging.md).
+See [ADR-011](adr/ADR-011-conventional-semver-and-late-tagging.md) and
+[ADR-020](adr/ADR-020-separate-release-validation-from-publication-authority.md).
 
 ### ADR-012: Standardize SHA-256 Checksum Companion Filenames
 
@@ -206,3 +209,16 @@ authoritative even while the awk-doxygen filter is still being developed.
 
 See [ADR-019](adr/ADR-019-adopt-awk-documentation-standard.md) and
 [`doc/awk-documentation-standard.md`](awk-documentation-standard.md).
+
+### ADR-020: Separate Release Validation from Publication Authority
+
+Release validation runs repository build, dependency, renderer, and test code with
+read-only repository-content authority.  After those exact six release files pass
+the release contract, they cross into a separate publication job through a
+transient GitHub Actions artifact, where checksums are verified again before
+attestation and release/tag creation.  The publication job does not check out,
+rebuild, or synchronize project code, which keeps release write and OIDC authority
+away from the larger validation execution surface.
+
+See [ADR-020](adr/ADR-020-separate-release-validation-from-publication-authority.md)
+and [`doc/release-verification.md`](release-verification.md).
