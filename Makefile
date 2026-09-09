@@ -45,6 +45,7 @@ BASHDEPS_URL := https://github.com/wesley-dean/bashdeps/releases/download/v$(BAS
 BASHDEPS_SHA256 := bb6c807fa12c010950bda06172ac0611d278c57aca1f8352f41502d0d76b4e6c
 BASH_MINIFIER := $(VENDOR_DIR)/bash-minifier.bash
 DOXYGEN_BASH_FILTER := $(VENDOR_DIR)/doxygen-bash.awk
+DOXYGEN_AWK_FILTER := $(VENDOR_DIR)/doxygen-awk.awk
 REFERENCE_DOC_DIR := doc/reference
 
 VERSION ?= 0.0.0-dev
@@ -172,13 +173,12 @@ deps: $(BASHDEPS) $(DEPENDENCY_MANIFEST)
 deps-check: verify-bashdeps $(DEPENDENCY_MANIFEST)
 	"$(BASHDEPS)" verify "$(DEPENDENCY_MANIFEST)"
 
-## Generate Bash Doxygen reference documentation from prepared filter state.
-## Maintained AWK already follows its documentation standard; awk-doxygen is being
-## integrated separately and is not silently substituted with the Bash filter.
+## Generate Bash and AWK Doxygen reference documentation from prepared filter state.
 docs:
 	@test -f "$(DOXYGEN_BASH_FILTER)" || { printf '%s\n' 'Missing documentation dependency vendor/doxygen-bash.awk; run make deps or make all' >&2; exit 1; }
+	@test -f "$(DOXYGEN_AWK_FILTER)" || { printf '%s\n' 'Missing documentation dependency vendor/doxygen-awk.awk; run make deps or make all' >&2; exit 1; }
 	$(MAKE) --no-print-directory docs-clean
-	chmod 0755 "$(DOXYGEN_BASH_FILTER)"
+	chmod 0755 "$(DOXYGEN_BASH_FILTER)" "$(DOXYGEN_AWK_FILTER)"
 	FIGURECTL_DOXYGEN_PROJECT_NAME="$(PROJECT_NAME)" doxygen Doxyfile
 
 ## Remove generated reference documentation.
