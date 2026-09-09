@@ -1,26 +1,47 @@
 # Getting Support
 
-This starter is intended for Bash projects.  If you encounter unexpected
-behavior in template-bash itself, please first collect enough information to make
-the problem reproducible:
+For ordinary `figurectl` questions, unexpected behavior, and reproducible bug
+reports, open an issue in this repository.
 
-1. the template-bash release or commit you are using;
-2. your Bash version (`bash --version`);
-3. your operating system or distribution;
-4. the command or Make target that failed;
-5. the smallest reproduction you can provide;
-6. expected behavior and actual behavior; and
-7. relevant standard output, standard error, exit status, and shell state.
+A useful report includes enough information to distinguish parser behavior,
+runtime portability, renderer behavior, and build/release behavior where relevant:
 
-For ordinary support questions and bug reports, open an issue in this repository.
-Do not include credentials, tokens, private data, or suspected vulnerability
-details in a public issue; use `SECURITY.md` for security reports.
+1. the `figurectl` release or commit being used;
+2. the artifact flavor (`figurectl.dev.bash`, `figurectl.bash`, or
+   `figurectl.min.bash`), when applicable;
+3. Bash version (`bash --version`);
+4. AWK implementation and version, when known;
+5. Graphviz version (`dot -V`) for SVG/PNG or DOT-style problems;
+6. operating system or distribution;
+7. the exact command or Make target that failed;
+8. the smallest Markdown input or repository state that reproduces the problem;
+9. expected behavior and actual behavior; and
+10. relevant standard output, standard error, exit status, and generated files.
 
-## Guidance for Derived Projects
+Please remove credentials, tokens, private data, and unrelated application content
+from public reproductions.
 
-Projects created from this template should rewrite this file before their first
-release so it describes their own runtime, public API, diagnostics, supported
-platforms, and issue-reporting expectations.
+## Runtime Baseline
 
-Do not leave support text that refers to template-bash, another source project, or
-an unrelated issue tracker in a derived repository.
+The v1.0 runtime contract is Bash 4.3 or newer plus portable AWK.  Graphviz `dot`
+is required only when SVG or PNG rendering is requested.
+
+The released Bash artifacts are standalone.  Runtime external plugins, plugin
+search paths, dynamic sourcing, and third-party plugin installation are not
+supported by the current product.
+
+## Build and Development Problems
+
+GNU Make is the canonical project orchestration surface.  When reporting a build,
+test, dependency, documentation, or release problem, include the Make target and
+whether dependency state had been prepared with `make deps`.
+
+`make deps` may use the network.  `make deps-check`, `make build`, `make test`,
+`make test-report`, and `make docs` consume prepared dependency state and should
+not silently repair it.
+
+## Security Reports
+
+Do not include suspected vulnerability details, real credentials, tokens, or
+private data in a public issue.  Follow `SECURITY.md` for private vulnerability
+reporting and coordinated disclosure.
