@@ -1,52 +1,28 @@
-#!/usr/bin/env bash
+# shellcheck shell=bash
 ## @file src/orchestrator.bash
-## @brief Provides the maintained-source figurectl command-line orchestrator.
+## @brief Provides the assembled figurectl command-line orchestrator.
 ## @details
-## This file is the behavior-preserving Bash extraction of
-## `wesley-dean/writing/scripts/figurectl.bash`.  It retains the existing public
-## `select`, `render`, `replace`, and `process` command behavior while moving the
-## embedded AWK program into documented modules under `lib/awk/`.
+## This file is the product-facing entry point appended after core Bash modules,
+## build-discovered input/output plugins, and generated embedded-AWK writer
+## functions.  It no longer discovers or reads maintained implementation files at
+## runtime; generated artifacts contain every implementation they support.
 ##
-## During this extraction phase, the orchestrator resolves those AWK modules from
-## the maintained repository tree and invokes them with repeated `awk -f`
-## arguments.  This is a development-source execution path, not the final
-## distribution design.  ADR-018 requires the later build phase to embed the
-## selected modules into standalone release artifacts without runtime source-tree
-## discovery.
+## Build-time plugins populate the internal format registry before `main()` runs.
+## The orchestrator asks that registry for requested-output capabilities and passes
+## the selected authored-source/replacement metadata to the portable AWK processor.
+## The processor itself is embedded literally during `make build`, materialized to
+## a secure temporary file for each AWK invocation, and executed with `awk -f`.
 ##
-## Bash 4.3 is the compatibility floor.  The orchestrator uses portable AWK for
-## Markdown processing and conditionally invokes Graphviz `dot` only for SVG or
-## PNG rendering.  Caller-selected DOT styling remains external policy and is
-## transformed by `lib/awk/dot-style.awk` before Graphviz execution.
-##
-## The source-module order below is explicit because the AWK modules form one
-## program and later modules call functions defined by earlier responsibility
-## layers.  This phase does not implement the generalized build-time input/output
-## plugin discovery defined by ADR-018; that work remains isolated to the next
-## implementation phase.
-
-set -euo pipefail
-
-## Absolute repository root used only by the maintained-source execution path.
-FIGURECTL_SOURCE_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-
-## Ordered AWK modules that together implement figure Markdown processing.
-FIGURECTL_PROCESSOR_AWK_FILES=(
-  "${FIGURECTL_SOURCE_ROOT}/lib/awk/common.awk"
-  "${FIGURECTL_SOURCE_ROOT}/lib/awk/metadata.awk"
-  "${FIGURECTL_SOURCE_ROOT}/lib/awk/fences.awk"
-  "${FIGURECTL_SOURCE_ROOT}/lib/awk/actions.awk"
-  "${FIGURECTL_SOURCE_ROOT}/lib/awk/main.awk"
-)
-
-## AWK program that injects caller-owned Graphviz style defaults.
-FIGURECTL_DOT_STYLE_AWK="${FIGURECTL_SOURCE_ROOT}/lib/awk/dot-style.awk"
+## Bash 4.3 is the compatibility floor.  Graphviz `dot` remains conditional and is
+## invoked only through a renderer function registered by graphical output
+## plugins.  Caller-selected DOT styling remains external policy.
 
 ## @fn usage()
-## @brief Prints the figurectl compatibility-baseline command-line usage.
+## @brief Prints the figurectl v1 command-line usage.
 ## @details
-## The usage surface intentionally matches the writing-repository implementation
-## during extraction.  Public CLI changes are outside this phase.
+## The public format inventory is intentionally documented here rather than
+## inferred from arbitrary runtime filesystem state.  The registry independently
+## validates whether a requested output is present in the built artifact.
 ##
 ## @par Standard Output
 ## The supported commands, options, formats, and standard-input default.
@@ -66,11 +42,6 @@ USAGE
 
 ## @fn die_usage()
 ## @brief Reports invalid command-line usage and terminates figurectl.
-## @details
-## Invalid invocation is a distinct compatibility category from runtime failure.
-## The diagnostic and usage text are written to standard error before the process
-## exits with status 2.
-##
 ## @param message Human-readable invalid-usage diagnostic.
 ## @par Standard Error
 ## Writes the prefixed diagnostic followed by complete usage text.
@@ -85,9 +56,9 @@ die_usage() {
 ## @fn die()
 ## @brief Reports a runtime failure and terminates figurectl.
 ## @details
-## Runtime failures include missing input files, unavailable Graphviz, invalid
-## style resources, and Graphviz rendering failure.  Parser/figure syntax errors
-## remain status 2 because they originate from the AWK processor's validation
+## Runtime failures include missing input files, unavailable renderer functions,
+## missing Graphviz, invalid style resources, and renderer failure.  Parser/figure
+## syntax errors remain status 2 because they originate from the AWK validation
 ## contract.
 ##
 ## @param message Human-readable runtime-failure diagnostic.
@@ -101,37 +72,28 @@ die() {
 }
 
 ## @fn source_format_for_output()
-## @brief Maps one requested output format to its required authored source.
-## @details
-## Text output consumes text source.  DOT, SVG, and PNG output consume DOT source.
-## The mapping is the v1 compatibility contract defined by ADR-017 and the public
-## specification.
-##
+## @brief Resolves one requested output through the built-in format registry.
 ## @param format Requested output format.
 ## @par Standard Output
-## Writes `text` or `dot` for a supported output format.
-## @retval 0 The requested format is supported and its source was printed.
-## @retval 1 The requested format is unsupported.
+## Writes the registered authored source name.
+## @retval 0 The requested output is registered.
+## @retval 1 The requested output is unsupported by this artifact.
 source_format_for_output() {
-  case "$1" in
-    text) printf '%s\n' text ;;
-    dot | svg | png) printf '%s\n' dot ;;
-    *) return 1 ;;
-  esac
+  figurectl_output_source "$1"
 }
 
 ## @fn parse_common_args()
 ## @brief Parses the shared compatibility-baseline figurectl options.
 ## @details
 ## The parser resets all command option globals on each invocation and accepts
-## the same shared option inventory as the original script, including options
-## that an individual subcommand may not use.  At most one input pathname is
-## accepted.  `--` terminates option parsing and may be followed by that one
-## pathname.
+## the same shared option inventory as the writing-repository implementation,
+## including options that an individual subcommand may not use.  At most one
+## input pathname is accepted.  `--` terminates option parsing and may be followed
+## by that one pathname.
 ##
-## The function requires `--format` and validates it through
-## `source_format_for_output()`.  Subcommand-specific requirements such as
-## `--figures-dir` are enforced by the command functions after this shared parse.
+## The function requires `--format` and validates it against the implementations
+## already assembled into the artifact.  Subcommand-specific requirements such as
+## `--figures-dir` are enforced by command functions after the shared parse.
 ##
 ## @param ... Command-specific arguments after the top-level command name.
 ## @par Standard Output
@@ -141,7 +103,7 @@ source_format_for_output() {
 ## @par Side Effects
 ## Sets global `FORMAT`, `FIGURES_DIR`, `DOT_STYLE`, `LINK_PREFIX`, `OUTPUT`, and
 ## `INPUT`.
-## @retval 0 Arguments were parsed and the requested format is supported.
+## @retval 0 Arguments were parsed and the requested output is registered.
 parse_common_args() {
   FORMAT=''
   FIGURES_DIR=''
@@ -198,16 +160,15 @@ parse_common_args() {
   done
 
   [[ -n $FORMAT ]] || die_usage '--format is required'
-  source_format_for_output "$FORMAT" > /dev/null \
+  figurectl_output_supported "$FORMAT" \
     || die_usage "unsupported format: $FORMAT"
 }
 
 ## @fn input_path_for_awk()
 ## @brief Resolves the configured input into the pathname passed to AWK.
 ## @details
-## The historical implementation represents standard input as `/dev/stdin`.
-## Named input must already exist as a regular file.  This extraction preserves
-## that behavior rather than changing the input abstraction.
+## The compatibility implementation represents standard input as `/dev/stdin`.
+## Named input must already exist as a regular file.
 ##
 ## @par Standard Output
 ## Writes `/dev/stdin` or the validated configured input pathname.
@@ -224,106 +185,104 @@ input_path_for_awk() {
 }
 
 ## @fn run_awk_mode()
-## @brief Executes the modular figure processor in one public phase mode.
+## @brief Executes the embedded figure processor in one public phase mode.
 ## @details
-## Every processor AWK module is passed to the selected AWK implementation with a
-## separate `-f` argument in explicit source order.  Configuration is supplied
-## through `-v` exactly as it was supplied to the embedded compatibility program.
-## The modular source files therefore behave as one AWK program without requiring
-## concatenation during development.
+## `make build` concatenates the explicitly ordered AWK processor modules into the
+## generated `figurectl_processor_awk_write()` function.  This helper writes those
+## trusted bytes to a `mktemp` pathname, resolves selected-format capabilities from
+## the already-initialized registry, executes portable AWK with `-f`, removes the
+## temporary program, and returns the original AWK status.
+##
+## The source capability inventory is serialized as `name=extension` pairs by
+## `figurectl_input_spec()`.  Registry token validation makes the serialization
+## delimiters unambiguous before the AWK parser validates the generated metadata
+## again.
 ##
 ## @param mode Processing mode: `select`, `render`, or `replace`.
 ## @par Standard Output
-## Carries the selected Markdown, render manifest, or replacement Markdown for
-## the requested mode.
+## Carries selected Markdown, the render manifest, or replacement Markdown for the
+## requested mode.
 ## @par Standard Error
 ## Carries AWK validation diagnostics and compatibility warnings.
+## @par Side Effects
+## Creates and removes one temporary trusted AWK program file.
 ## @retval 0 The AWK phase completed successfully.
 ## @retval 2 The AWK processor rejected malformed or inconsistent figure input.
 run_awk_mode() {
   local mode=$1
   local input_path
-  local source_file
-  local -a awk_args=()
+  local processor_awk
+  local source_spec
+  local wantsrc
+  local wantkind
+  local wantext
+  local wantinfo
+  local awk_status
 
   input_path=$(input_path_for_awk)
-  for source_file in "${FIGURECTL_PROCESSOR_AWK_FILES[@]}"; do
-    awk_args+=(-f "$source_file")
-  done
+  processor_awk=$(mktemp "${TMPDIR:-/tmp}/figurectl.processor.XXXXXX.awk")
 
-  awk \
+  if ! figurectl_processor_awk_write "$processor_awk"; then
+    rm -f "$processor_awk"
+    die 'failed to materialize embedded AWK processor'
+  fi
+
+  source_spec=$(figurectl_input_spec)
+  wantsrc=$(figurectl_output_source "$FORMAT")
+  wantkind=$(figurectl_output_kind "$FORMAT")
+  wantext=$(figurectl_output_extension "$FORMAT")
+  wantinfo=$(figurectl_output_fence_info "$FORMAT")
+
+  if awk \
     -v mode="$mode" \
-    -v want="$FORMAT" \
-    -v wantsrc="$(source_format_for_output "$FORMAT")" \
+    -v wantsrc="$wantsrc" \
+    -v wantkind="$wantkind" \
+    -v wantext="$wantext" \
+    -v wantinfo="$wantinfo" \
+    -v source_spec="$source_spec" \
     -v figdir="$FIGURES_DIR" \
     -v linkprefix="$LINK_PREFIX" \
-    "${awk_args[@]}" \
-    "$input_path"
+    -f "$processor_awk" \
+    "$input_path"; then
+    awk_status=0
+  else
+    awk_status=$?
+  fi
+
+  rm -f "$processor_awk"
+  return "$awk_status"
 }
 
-## @fn render_graphics()
-## @brief Renders materialized DOT files to the requested graphical format.
+## @fn render_registered_output()
+## @brief Invokes the renderer registered for the requested output, when any.
 ## @details
-## The render manifest contains paths produced by the AWK `render` phase.  Only
-## `.dot` entries participate in graphical rendering.  SVG and PNG rendering
-## require Graphviz `dot`; text and DOT output return without invoking Graphviz.
+## Fence outputs register no renderer and return immediately.  Graphical outputs
+## register a trusted function name already assembled into the artifact.  Missing
+## renderer functions are internal artifact defects; figurectl fails rather than
+## searching the filesystem for an implementation.
 ##
-## When `DOT_STYLE` is configured, `lib/awk/dot-style.awk` writes a temporary
-## styled DOT file beneath `FIGURES_DIR`.  The temporary file is removed on both
-## successful rendering and handled failures.  Caller-provided style text is not
-## interpreted by Bash; it is inserted into DOT input before Graphviz receives it.
-##
-## @param manifest Path containing one materialized asset pathname per line.
+## @param manifest Path containing materialized asset paths emitted by AWK.
 ## @par Standard Output
-## Graphviz output is directed to generated files rather than standard output.
+## Renderer-specific behavior; built-in Graphviz rendering writes files only.
 ## @par Standard Error
-## Missing Graphviz, style-transformation failure, and Graphviz failure are
-## reported through `die()`.  Graphviz may also write its own diagnostics.
-## @par Side Effects
-## May create temporary styled DOT input and generated `.svg` or `.png` files.
-## Invokes AWK and Graphviz as external commands.
-## @retval 0 No graphical rendering was required, or all rendering succeeded.
-render_graphics() {
+## Missing renderer functions and renderer failures are reported as runtime
+## failures.
+## @retval 0 No renderer was required, or the registered renderer succeeded.
+render_registered_output() {
   local manifest=$1
-  [[ $FORMAT == svg || $FORMAT == png ]] || return 0
+  local renderer
 
-  local dot_file render_input temp_file
-  while IFS= read -r dot_file; do
-    [[ $dot_file == *.dot ]] || continue
-    command -v dot > /dev/null 2>&1 \
-      || die "Graphviz 'dot' is required for $FORMAT output"
+  renderer=$(figurectl_output_renderer "$FORMAT")
+  [[ -n $renderer ]] || return 0
 
-    render_input=$dot_file
-    temp_file=''
+  declare -F "$renderer" > /dev/null 2>&1 \
+    || die "renderer unavailable for $FORMAT output: $renderer"
 
-    if [[ -n $DOT_STYLE ]]; then
-      temp_file=$(mktemp "${FIGURES_DIR}/.styled.XXXXXX.dot")
-      awk \
-        -v stylefile="$DOT_STYLE" \
-        -f "$FIGURECTL_DOT_STYLE_AWK" \
-        "$dot_file" > "$temp_file" || {
-        rm -f "$temp_file"
-        die "failed to apply DOT style to ${dot_file}"
-      }
-      render_input=$temp_file
-    fi
-
-    if ! dot "-T${FORMAT}" -o "${dot_file%.dot}.${FORMAT}" "$render_input"; then
-      [[ -z $temp_file ]] || rm -f "$temp_file"
-      die "Graphviz failed rendering ${dot_file##*/} as ${FORMAT}"
-    fi
-
-    [[ -z $temp_file ]] || rm -f "$temp_file"
-  done < "$manifest"
+  "$renderer" "$manifest" "$FORMAT"
 }
 
 ## @fn command_select()
 ## @brief Executes source-representation selection.
-## @details
-## Shared arguments are parsed, then the `select` AWK mode emits ordinary
-## Markdown plus only the figure source representation required by the requested
-## output format.
-##
 ## @param ... Arguments accepted by the public `select` command.
 ## @par Standard Output
 ## Selected Markdown is written to standard output.
@@ -335,20 +294,19 @@ command_select() {
 }
 
 ## @fn command_render()
-## @brief Materializes selected source figures and renders graphics when needed.
+## @brief Materializes selected source figures and invokes a renderer when needed.
 ## @details
-## `--figures-dir` is mandatory.  The directory is created when absent.  A
-## configured DOT style must already exist even when later work would not use it,
-## preserving the baseline validation order.  The render manifest is temporary
-## process state and is removed through an EXIT trap on interruption or failure.
+## `--figures-dir` is mandatory and created when absent.  A configured DOT style
+## must already exist even when the requested output does not use it, preserving
+## compatibility validation order.  The AWK render manifest is temporary process
+## state and is removed through an EXIT trap on interruption or failure.
 ##
 ## @param ... Arguments accepted by the public `render` command.
 ## @par Standard Output
-## Successful rendering normally produces no final standard output; the internal
-## AWK manifest is redirected to a temporary file.
+## Successful rendering normally produces no final standard output.
 ## @par Side Effects
-## Creates the figures directory, materialized figure assets, optional graphics,
-## and a temporary render manifest.
+## Creates the figures directory, materialized figure assets, optional rendered
+## graphics, and a temporary render manifest.
 ## @retval 0 Rendering completed successfully.
 command_render() {
   parse_common_args "$@"
@@ -361,19 +319,16 @@ command_render() {
   local manifest
   manifest=$(mktemp "${TMPDIR:-/tmp}/figurectl.render.XXXXXX")
   trap 'rm -f "$manifest"' EXIT
+
   run_awk_mode render > "$manifest"
-  render_graphics "$manifest"
+  render_registered_output "$manifest"
+
   rm -f "$manifest"
   trap - EXIT
 }
 
 ## @fn command_replace()
-## @brief Replaces selected figure directives with ordinary publication Markdown.
-## @details
-## Replacement consumes assets already materialized beneath `--figures-dir`.
-## Graphical references use `--link-prefix` when supplied and otherwise use the
-## figure directory path.
-##
+## @brief Replaces selected figure directives with publication Markdown.
 ## @param ... Arguments accepted by the public `replace` command.
 ## @par Standard Output
 ## Replacement Markdown is written to standard output.
@@ -388,20 +343,20 @@ command_replace() {
 ## @fn command_process()
 ## @brief Executes the complete select, render, and replace pipeline.
 ## @details
-## The command creates temporary selected-Markdown and render-manifest files,
-## runs each public phase in order, conditionally renders Graphviz output, and
-## writes final Markdown to `OUTPUT` when configured or standard output otherwise.
+## The command preserves the compatibility implementation's physical three-pass
+## pipeline.  It creates temporary selected-Markdown and render-manifest files,
+## runs each public phase in order, invokes the registered renderer when required,
+## and writes final Markdown to `OUTPUT` or standard output.
 ##
-## After selection, global `INPUT` is intentionally rebound to the temporary
-## selected Markdown so render and replace consume exactly the selected source.
-## This mirrors the original implementation's physical three-pass pipeline.
+## After selection, global `INPUT` is rebound to the temporary selected Markdown
+## so render and replace consume exactly the selected authored representation.
 ##
 ## @param ... Arguments accepted by the public `process` command.
 ## @par Standard Output
 ## Final Markdown is written here when `--output` is omitted.
 ## @par Side Effects
 ## Creates the figures directory, selected/render temporary files, materialized
-## figure assets, optional graphics, and the requested output file when supplied.
+## assets, optional graphics, and the requested output file when supplied.
 ## @retval 0 The complete pipeline completed successfully.
 command_process() {
   parse_common_args "$@"
@@ -411,7 +366,8 @@ command_process() {
     die "DOT style file does not exist: $DOT_STYLE"
   fi
 
-  local selected manifest
+  local selected
+  local manifest
   selected=$(mktemp "${TMPDIR:-/tmp}/figurectl.selected.XXXXXX")
   manifest=$(mktemp "${TMPDIR:-/tmp}/figurectl.render.XXXXXX")
   trap 'rm -f "$selected" "$manifest"' EXIT
@@ -420,7 +376,7 @@ command_process() {
 
   INPUT=$selected
   run_awk_mode render > "$manifest"
-  render_graphics "$manifest"
+  render_registered_output "$manifest"
 
   if [[ -n $OUTPUT ]]; then
     run_awk_mode replace > "$OUTPUT"
@@ -439,9 +395,9 @@ command_process() {
 ## requiring a format.  All other recognized commands delegate to their phase
 ## functions; unknown commands are invalid usage.
 ##
-## @param ... Complete command-line arguments supplied to the source runner.
+## @param ... Complete command-line arguments supplied to the generated artifact.
 ## @retval 0 The requested operation completed successfully.
-## @retval 1 A runtime dependency, file, style, or Graphviz operation failed.
+## @retval 1 A runtime dependency, file, renderer, or Graphviz operation failed.
 ## @retval 2 Command usage or figure syntax was invalid.
 main() {
   (($# > 0)) || die_usage 'missing command'
