@@ -2,20 +2,20 @@
 
 ## Scope
 
-template-bash is a personal open source starter rather than a commercially
-supported security product.  The project nevertheless treats vulnerability
-reports seriously because derived repositories may inherit build, dependency,
-CI, release, and runtime patterns from this template.
+`figurectl` is a small open source Bash/AWK tool, not a sandbox or a commercially
+supported security product.  It nevertheless processes caller-controlled Markdown,
+constructs generated-file paths, optionally invokes Graphviz on caller-controlled
+DOT/style data, embeds generated AWK into release artifacts, and uses CI/release
+automation with publication authority.  Those boundaries are treated explicitly
+rather than hidden behind a broad claim that the tool is "secure."
 
-The starter's security posture is intentionally bounded.  Accepted ADRs describe
-specific architectural guarantees and limitations, while
-`doc/threat-modeling.md` provides a reusable exercise for projects whose domain
-introduces sensitive data, untrusted input, destructive operations, privileged
-authority, network access, or other security-relevant boundaries.
+The project-specific threat model is maintained in `doc/threat-model.md`.
+Architecture Decision Records document the decisions behind important runtime,
+build, dependency, and release boundaries.
 
-Projects derived from this template should rewrite this policy before their first
-release so it reflects their actual maintainers, supported versions, security
-claims, disclosure channel, and response expectations.
+Before the first public release, vulnerability reports may identify the affected
+commit.  After releases exist, please identify the exact release and artifact
+flavor when practical.
 
 ## Reporting a Vulnerability
 
@@ -26,10 +26,22 @@ Send vulnerability reports to:
 
 [security_vulnerability_disclosure@wesleydean.com](mailto:security_vulnerability_disclosure@wesleydean.com)
 
-Useful reports include the affected template-bash release or commit, Bash version,
-operating system, a minimal reproduction, expected behavior, actual behavior, and
-the security impact.  Please avoid including real production credentials, tokens,
-or private data when a synthetic reproducer will demonstrate the issue.
+Useful reports include:
+
+- affected `figurectl` release or commit;
+- artifact flavor when relevant;
+- Bash version;
+- AWK implementation/version when relevant;
+- Graphviz version for graphical-rendering issues;
+- operating system or distribution;
+- a minimal synthetic reproduction;
+- expected behavior and actual behavior;
+- relevant stdout, stderr, exit status, or generated files; and
+- the security impact and trust boundary you believe is affected.
+
+Please avoid including real production credentials, tokens, private data, or
+sensitive unpublished repository content when a synthetic reproducer will
+demonstrate the issue.
 
 Good-faith attempts will be made to acknowledge, investigate, and address reports
 within a reasonable period.  If communication stalls or a report remains
@@ -40,15 +52,40 @@ number of days has elapsed.
 Once disclosure is appropriate, a public issue, advisory, release note, or other
 public record may be created as part of the coordinated resolution.
 
-## Security Expectations
+## Current Security Boundaries
+
+Important current boundaries include:
+
+- figure identifiers are constrained before they become generated filenames;
+- built-in input/output plugins are discovered only during build and are embedded
+  into standalone artifacts;
+- released artifacts do not scan runtime plugin directories or dynamically source
+  third-party implementations;
+- embedded AWK source is materialized through `mktemp` before `awk -f` execution;
+- DOT and style content are passed as data rather than evaluated as Bash source;
+- Graphviz is a conditional native-code parser/renderer and is not sandboxed by
+  `figurectl`;
+- build dependencies are pinned/verified where the project controls their
+  acquisition, but pinning does not prove behavioral safety; and
+- release validation runs separately from privileged publication so build/test
+  code does not intentionally inherit release-write or OIDC authority.
+
+See `doc/threat-model.md`, ADR-015, ADR-016, ADR-018, and ADR-020 for the maintained
+analysis and residual risks.
+
+## Non-Promises
+
+The project does not promise:
+
+- safe execution of malicious Graphviz input in a sandbox;
+- a third-party runtime plugin trust model;
+- protection from a compromised Bash, AWK, Graphviz installation, CI runner,
+  GitHub Actions service, or build host;
+- atomic replacement of a complete publication directory;
+- semantic-equivalence proof between paired text and DOT figures; or
+- that checksums, dependency pinning, or attestations prove absence of
+  vulnerabilities.
 
 Security-sensitive changes should identify the boundary being protected, the
-assets and authority involved, supporting evidence, and residual risk rather than
-relying on a broad claim that a change is "secure."
-
-Every new dependency should be treated as an expansion of the trusted computing
-base.  Digest pinning and checksum verification help establish acquisition
-integrity; they do not establish behavioral safety or appropriate privilege.
-
-See ADR-015 for dependency attack-surface review, ADR-016 for threat-modeling
-expectations, and `doc/threat-modeling.md` for the reusable exercise.
+assets and authority involved, supporting evidence, and residual risk.  Every new
+dependency should be treated as an expansion of the trusted computing base.

@@ -8,23 +8,23 @@ Fixes #
 
 ## Summary
 
-<!-- What problem does this change address, and what behavior changes? -->
+<!-- What figurectl problem does this change address, and what behavior changes? -->
 
 ## Architectural impact
 
 <!--
 Identify governing ADRs or explain why no architectural decision changes.  If the
 change establishes a durable new decision, add or update an ADR and the concise
-decision map.
+decision map.  Public behavior changes should also update doc/specification.md.
 -->
 
 ## Security / trust impact
 
 <!--
-Does this change dependencies, authority, sensitive-data flow, untrusted-input
-handling, network/filesystem access, subprocesses, dynamic loading, build/release
-authority, or security claims?  If so, summarize the threat-model impact and
-residual risk.
+Does this change dependencies, authority, untrusted-input handling,
+network/filesystem access, Graphviz or other subprocesses, plugin boundaries,
+build transformations, CI/release authority, or security claims?  If so, summarize
+the threat-model impact and residual risk.
 -->
 
 ## Validation
@@ -35,19 +35,26 @@ residual risk.
 - [ ] `make test`
 - [ ] `make docs`
 - [ ] `make deps-check` when dependency state or acquisition changed
+- [ ] `doc/release-verification.md` reviewed when release behavior changed
 
 ## Readiness checklist
 
-- [ ] Public behavior, options, outputs, artifacts, or Make targets are documented.
+- [ ] Public commands, options, formats, outputs, artifacts, or Make targets are
+      documented when affected.
 - [ ] Governing ADRs and `doc/decisions.md` are updated when architecture changed.
 - [ ] Promises and non-promises are explicit for consequential new behavior.
-- [ ] Doxygen comments are updated when maintained Bash contracts changed.
+- [ ] Bash Doxygen comments follow `doc/documentation-standard.md` when maintained
+      Bash contracts changed.
+- [ ] AWK documentation follows `doc/awk-documentation-standard.md` when maintained
+      AWK contracts changed.
 - [ ] Tests exercise each affected shipped artifact flavor.
 - [ ] Negative assertions are included when the contract requires forbidden data
       or behavior to remain absent.
 - [ ] New dependencies were reviewed as additions to the trusted computing base.
-- [ ] Threat-model documentation was reviewed when trust, authority, or sensitive
-      data flow changed.
+- [ ] `doc/threat-model.md` was reviewed when trust, authority, parsing,
+      filesystem, renderer, dependency, or release boundaries changed.
+- [ ] Build-time plugin changes preserve the no-runtime-plugin boundary unless a
+      new ADR explicitly changes it.
 - [ ] Repository-facing documentation/templates contain no stale project names,
       unrelated links, or inherited policies that no longer apply.
 

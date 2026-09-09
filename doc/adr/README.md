@@ -51,6 +51,7 @@ sections do not replace the surrounding rationale.
 - ADR-017: Figure Source Representation and Processing Pipeline
 - ADR-018: Build-Time Input and Output Plugin Architecture
 - ADR-019: Adopt the AWK Documentation Standard
+- ADR-020: Separate Release Validation from Publication Authority
 
 ADR-014 refines how figurectl interprets the inherited ADR-004: modular maintained
 source and deterministic assembly remain reusable architectural lessons, while
@@ -62,3 +63,8 @@ supported.
 ADR-017 is adapted from `wesley-dean/writing` ADR-035.  The writing ADR remains
 historical governance for that repository, while figurectl owns the reusable
 figure-processing contract going forward.
+
+ADR-020 refines ADR-011's late-tagging release sequence by separating read-only
+artifact validation from the narrowly privileged publication job.  Validated
+release files cross that boundary through transient GitHub Actions artifact
+storage and are checksum-verified again before attestation and release creation.

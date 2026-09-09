@@ -3,7 +3,7 @@
 `figurectl` is a Bash/AWK tool for selecting, rendering, and replacing paired
 figure representations embedded in ordinary Markdown.
 
-The project is being extracted from the figure-processing implementation in
+The project was extracted from the figure-processing implementation in
 `wesley-dean/writing`.  The standalone product preserves that implementation's
 public command surface and figure syntax while moving the behavior into a
 modular, documented, tested, independently released project.
@@ -15,10 +15,9 @@ supported.
 
 > [!NOTE]
 > The behavior-preserving source extraction and standalone artifact migration are
-> implemented in this repository.  The remaining migration step is adoption by
-> `wesley-dean/writing`, which will occur separately after a suitable figurectl
-> release exists.  Versioning and MegaLinter automation may remain temporarily
-> disabled during active development without changing the runtime architecture.
+> implemented in this repository.  The remaining cross-repository migration step
+> is adoption by `wesley-dean/writing`, which will occur separately after a
+> suitable figurectl release exists.
 
 ## v1.0 Behavior
 
@@ -118,7 +117,7 @@ for testing, inspection, and composition.
 The phases are architectural responsibilities, not a requirement for separate
 executables or a fixed number of physical parsing passes.  The current
 implementation deliberately retains the original physical three-pass pipeline
-while the extraction stabilizes.
+while the compatibility baseline stabilizes.
 
 ## Source and Plugin Architecture
 
@@ -218,6 +217,16 @@ This is particularly important because the generated Bash artifact contains
 embedded AWK source and therefore passes through multiple source-to-source build
 transformations.
 
+Release validation follows a late-tagging, least-privilege model.  Repository
+build/dependency/test code runs in a read-only validation job with Graphviz present
+and exercises the exact candidate artifacts, including Bash 4.3 compatibility.
+The resulting six release files are transferred to a separate publication job,
+checksum-verified again, attested, and only then published with the release tag.
+The publication job does not check out or rebuild figurectl source.
+
+See [`doc/release-verification.md`](doc/release-verification.md), ADR-011, and
+ADR-020.
+
 ## Testing
 
 The public Bats contract is executed against all three generated artifacts.  It
@@ -240,9 +249,11 @@ passed as data rather than evaluated as Bash source.
 
 The project does not sandbox Graphviz or promise that arbitrary malicious DOT is
 safe to parse.  Build dependencies and runtime interpreters/renderers remain part
-of the trusted computing base according to their authority.
+of the trusted computing base according to their authority.  Release validation
+and publication are separated so the larger build/test surface does not
+intentionally inherit release-write or OIDC authority.
 
-See [`doc/threat-model.md`](doc/threat-model.md) and ADR-016.
+See [`doc/threat-model.md`](doc/threat-model.md), ADR-016, and ADR-020.
 
 ## Documentation
 
@@ -264,11 +275,12 @@ The project uses documentation-driven, test-second development.
   trust-boundary analysis.
 - [`doc/testing.md`](doc/testing.md) defines testing expectations.
 - [`doc/release-verification.md`](doc/release-verification.md) defines release
-  verification sequencing.
+  verification sequencing and authority boundaries.
 
-The `awk-doxygen` filter is being developed separately.  Maintained AWK source
-follows the adopted standard regardless of whether generated AWK reference
-output is available yet.
+Maintained AWK follows its adopted documentation standard independently of
+reference-generation tooling.  Generated AWK reference documentation may be added
+once a suitable `awk-doxygen` release is deliberately selected, pinned, and
+reviewed as a repository dependency.
 
 ## Architecture Lineage
 
