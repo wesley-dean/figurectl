@@ -4,12 +4,15 @@
 ## Figure metadata is carried in an HTML comment immediately preceding the
 ## authored fenced payload.  This module recognizes the compatibility-baseline
 ## attributes `id`, `format`, `alt`, and `caption`, rejects duplicate or unknown
-## attributes, validates source formats and safe identifiers, and preserves the
-## historical fallback behavior for missing identifiers and alternative text.
+## attributes, validates safe identifiers, and preserves the historical fallback
+## behavior for missing identifiers and alternative text.
 ##
-## The module assumes `line0` identifies the first physical line of the current
-## figure directive.  It updates the global current-figure fields used by later
-## fence and action modules.  The implementation targets portable AWK.
+## Supported authored formats are supplied by the built-in format registry through
+## the `source_ext` array populated by `capabilities.awk`; the parser therefore
+## does not maintain a second hard-coded format inventory.  The module assumes
+## `line0` identifies the first physical line of the current figure directive and
+## updates the global current-figure fields used by later fence and action modules.
+## The implementation targets portable AWK.
 
 ## @fn attr_count(s, key)
 ## @brief Counts quoted occurrences of one metadata attribute.
@@ -81,7 +84,8 @@ function attr_value(s, key,    re, m) {
 ## @details
 ## Validation uses the remaining text to detect unrecognized tokens after all
 ## supported attributes have been removed.  The supported attribute inventory is
-## intentionally fixed here to preserve the v1 compatibility grammar.
+## intentionally fixed here because these are figure-directive metadata keys, not
+## pluggable authored/output formats.
 ##
 ## @param s Metadata text from which recognized attributes are removed.
 ## @local keys Scratch array containing the supported attribute names.
@@ -117,10 +121,11 @@ function strip_attrs(s,    keys, i, re) {
 ## @brief Validates metadata and populates the current figure state.
 ## @details
 ## Exactly one `format` attribute is required.  `id`, `alt`, and `caption` may
-## appear at most once.  Only `text` and `dot` are accepted authored source
-## formats in the compatibility baseline.  Missing identifiers receive a
-## format-local sequential name, while missing alternative text receives the
-## generic `Technical figure` fallback; both recoveries emit warnings.
+## appear at most once.  The declared format must exist in the `source_ext`
+## capability array populated from the built-in input registry.  Missing
+## identifiers receive a format-local sequential name, while missing alternative
+## text receives the generic `Technical figure` fallback; both recoveries emit
+## warnings.
 ##
 ## Identifier validation occurs before the value can be used as a pathname.
 ## Duplicate detection is scoped by authored format so one text representation
@@ -140,8 +145,8 @@ function strip_attrs(s,    keys, i, re) {
 ## metadata is reported through `fail()`.
 ##
 ## @par Globals
-## Reads `line0`.  Sets `id`, `fmt`, `alt`, and `caption`.  Updates
-## `format_seen` and `seen` to implement fallback numbering and duplicate
+## Reads `line0` and `source_ext`.  Sets `id`, `fmt`, `alt`, and `caption`.
+## Updates `format_seen` and `seen` to implement fallback numbering and duplicate
 ## detection.
 ##
 ## @par Side Effects
@@ -185,7 +190,7 @@ function parse_attrs(meta,    c, left) {
     fail("unrecognized figure metadata near line " line0 ": " left)
   }
 
-  if (fmt != "text" && fmt != "dot") {
+  if (!(fmt in source_ext)) {
     fail("unsupported source format: " fmt)
   }
 
