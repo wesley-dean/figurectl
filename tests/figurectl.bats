@@ -165,13 +165,24 @@ unsafe
 ```
 EOF
 
-  run "${FIGURECTL_ARTIFACT}" process \
-    --format text \
-    --figures-dir "${FIGURES_DIR}" \
-    "${INPUT_FILE}"
+  local stdout_file="${TEST_ROOT}/unsafe.stdout"
+  local stderr_file="${TEST_ROOT}/unsafe.stderr"
 
-  [ "${status}" -eq 2 ]
-  [[ "${output}" == *'unsafe figure id: ../escape'* ]]
+  run bash -c '"$1" process --format text --figures-dir "$2" "$3" >"$4" 2>"$5"' \
+    _ "${FIGURECTL_ARTIFACT}" "${FIGURES_DIR}" "${INPUT_FILE}" \
+    "${stdout_file}" "${stderr_file}"
+
+  if [ "${status}" -ne 2 ]; then
+    printf 'expected unsafe identifier status 2; got %s\n' "${status}" >&2
+    printf '%s\n' '--- stdout ---' >&2
+    cat "${stdout_file}" >&2
+    printf '%s\n' '--- stderr ---' >&2
+    cat "${stderr_file}" >&2
+    return 1
+  fi
+
+  grep -Fq -- 'unsafe figure id: ../escape' "${stderr_file}"
+  [ ! -s "${stdout_file}" ]
   [ ! -e "${TEST_ROOT}/escape.txt" ]
 }
 
