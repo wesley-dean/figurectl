@@ -30,10 +30,16 @@ truth.
 The repository is being adapted from template-bash into the standalone figurectl
 product.
 
-The governance/specification work defines the intended compatibility target before
-runtime migration.  Until the implementation extraction lands, inherited template
-runtime behavior may still exist in `src/` and `lib/`; do not treat that starter
-behavior as figurectl's public contract merely because it is executable.
+The behavior-preserving maintained-source extraction now lives in
+`src/orchestrator.bash` and `lib/awk/`.  The source runner loads the explicit AWK
+module set directly from the repository and exists to prove compatibility before
+artifact assembly and build-time plugin discovery are changed.
+
+The inherited template artifact build, starter entry point, and starter plugin
+files remain temporarily in place.  Do not treat those generated starter
+artifacts as figurectl's public implementation.  Replacing the build/artifact
+path and introducing the ADR-018 built-in plugin architecture belong to the next
+implementation phase.
 
 The compatibility baseline is the figure-processing behavior originally maintained
 as `scripts/figurectl.bash` in `wesley-dean/writing`.
@@ -60,11 +66,15 @@ See `doc/specification.md` and ADR-017.
 
 ## Source and Plugin Architecture
 
-The intended maintained implementation is responsibility-focused Bash plus portable
-AWK.
+The maintained implementation uses responsibility-focused Bash plus portable AWK.
+The current extraction keeps AWK processing in explicit modules for common
+helpers, metadata, fences, phase actions, the record state machine, and DOT-style
+injection.
 
 Core source ordering is explicit.  Input/output modules that are genuinely
-additive may be discovered deterministically during build.
+additive may be discovered deterministically during build.  The generalized
+build-time input/output plugin layer has not yet been applied to the extracted
+source and should not be smuggled into behavior-preserving changes.
 
 Plugin discovery is **build-time only**.  Generated artifacts contain every
 implementation they support.
@@ -166,6 +176,11 @@ Negative assertions are required where the contract says something must not
 occur, such as unsafe pathname use, unexpected diagnostics on stdout, runtime
 plugin discovery, or leakage of non-selected figure representations.
 
+During the behavior-preserving extraction, `tests/figurectl-source.bats` exercises
+`src/orchestrator.bash` directly.  The current Make artifact matrix still belongs
+to the inherited template.  Phase 3 must move the same behavior contract onto the
+actual figurectl development, ordinary, and minified artifacts.
+
 ## Scope Discipline
 
 Prefer the smallest coherent change that satisfies governing decisions.  Do not
@@ -177,8 +192,12 @@ should be handled as separate reviewable changes unless they block compatibility
 
 ## Repository Locations
 
-- `src/`: product-facing Bash orchestration/entrypoint source.
-- `lib/`: maintained implementation modules.
+- `src/orchestrator.bash`: maintained-source figurectl orchestration during the
+  extraction phase.
+- `src/main.bash`: inherited starter entry point pending artifact migration.
+- `lib/awk/`: maintained portable-AWK figure processor modules.
+- `lib/plugin-registry.bash` and `lib/plugins/`: inherited starter plugin example
+  pending the figurectl build-time plugin implementation.
 - `tests/`: Bats behavior tests and fixtures.
 - `doc/specification.md`: intended public figurectl contract.
 - `doc/decisions.md`: concise Accepted-decision map.

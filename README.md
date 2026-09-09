@@ -8,16 +8,17 @@ The project is being extracted from the figure-processing implementation in
 public command surface and figure syntax while moving the behavior into a
 modular, documented, tested, independently released project.
 
-The maintained source will be modular; releases will remain standalone Bash
-artifacts.  Built-in input/output implementations are discovered only during the
-build and embedded into the generated executable.  Runtime external plugins are
-not supported.
+The maintained source is modular; releases will remain standalone Bash artifacts.
+Built-in input/output implementations are discovered only during the build and
+embedded into the generated executable.  Runtime external plugins are not
+supported.
 
 > [!NOTE]
-> The repository is currently in the governance/specification phase of the
-> extraction.  `doc/specification.md` describes the compatibility target, while
-> the inherited template executable remains in place until the implementation
-> migration lands in a subsequent pull request.
+> The repository is currently in the behavior-preserving source-extraction phase.
+> `src/orchestrator.bash` and the portable AWK modules under `lib/awk/` implement
+> the compatibility baseline directly from maintained source.  The inherited
+> template artifact build remains in place until the build-time plugin and
+> standalone artifact migration lands in the next implementation phase.
 
 ## Intended v1.0 Behavior
 
@@ -119,12 +120,15 @@ executables or a fixed number of physical parsing passes.
 
 ## Source and Plugin Architecture
 
-The standalone implementation will use responsibility-focused Bash and portable
-AWK source modules.
+The maintained extraction uses responsibility-focused Bash and portable AWK
+source modules.  `src/orchestrator.bash` provides the current development-source
+entry point, and `lib/awk/` separates common helpers, metadata parsing, fence
+recognition, phase actions, the Markdown state machine, and DOT-style injection.
 
-Core source ordering is explicit.  Genuinely additive input/output modules may be
-discovered deterministically during `make build`.  Every supported implementation
-is embedded into the release artifact before publication.
+This extraction intentionally uses an explicit AWK module order and does not yet
+implement the generalized input/output plugin registry.  The next implementation
+phase will introduce deterministic build-time discovery for genuinely additive
+input/output modules and embed those implementations into standalone artifacts.
 
 The initial project has no runtime plugin discovery, plugin search path, dynamic
 sourcing, hot loading, or third-party plugin installation API.  Adding such a
