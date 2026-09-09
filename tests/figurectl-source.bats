@@ -197,15 +197,16 @@ fallback
 ```
 EOF
 
-  run --separate-stderr bash "${FIGURECTL_SOURCE}" process \
-    --format text \
-    --figures-dir "${FIGURES_DIR}" \
-    "${INPUT_FILE}"
+  local stderr_file="${TEST_ROOT}/stderr.txt"
+  run bash -c 'bash "$1" process --format text --figures-dir "$2" "$3" 2>"$4"' \
+    _ "${FIGURECTL_SOURCE}" "${FIGURES_DIR}" "${INPUT_FILE}" "${stderr_file}"
 
   [ "${status}" -eq 0 ]
   [ -s "${FIGURES_DIR}/figure-001.txt" ]
-  [[ "${stderr}" == *'warning: missing id; using figure-001'* ]]
-  [[ "${stderr}" == *'warning: figure figure-001 is missing alt text'* ]]
+  grep -Fq -- 'warning: missing id; using figure-001' "${stderr_file}"
+  grep -Fq -- \
+    'warning: figure figure-001 is missing alt text' \
+    "${stderr_file}"
   [[ "${output}" == *'fallback'* ]]
 }
 
