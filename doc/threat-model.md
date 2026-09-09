@@ -2,12 +2,12 @@
 
 This document applies the review method in [`threat-modeling.md`](threat-modeling.md)
 to the current `figurectl` architecture.  It covers the standalone runtime and the
-build/release boundaries that materially affect the integrity of published
-artifacts.
+build, documentation, and release boundaries that materially affect maintained or
+published project output.
 
 The model is deliberately bounded.  It records objectives, mitigations, and
 residual risk rather than making a general claim that the program, its build
-pipeline, or its subprocesses are secure.
+pipeline, its documentation toolchain, or its subprocesses are secure.
 
 ## Scope and Security Objectives
 
@@ -20,6 +20,7 @@ The current review covers:
 - Markdown figure parsing and identifier validation;
 - generated-file paths beneath caller-selected figure directories;
 - conditional Graphviz execution for SVG/PNG rendering;
+- pinned Bash/AWK Doxygen filters used to generate reference documentation;
 - release validation of exact generated artifacts;
 - transfer of validated release files between GitHub Actions jobs; and
 - separation of read-only validation authority from privileged attestation and
@@ -39,9 +40,12 @@ The primary security and integrity objectives are:
    filenames and are removed after use where practical;
 6. ordinary data output and diagnostics retain their documented stdout/stderr
    separation;
-7. repository build/test/dependency code does not receive publication authority
+7. documentation generation uses reviewed, pinned language-specific filters from
+   prepared dependency state rather than acquiring executable filter code during
+   `make docs`;
+8. repository build/test/dependency code does not receive publication authority
    merely because it participates in release validation; and
-8. the bytes published in a GitHub release are the same six files that passed
+9. the bytes published in a GitHub release are the same six files that passed
    validation and checksum verification before crossing into the publication job.
 
 ## Assets
@@ -49,6 +53,7 @@ The primary security and integrity objectives are:
 Assets relevant to these objectives include:
 
 - maintained Bash, AWK, and plugin source;
+- maintained Doxygen comments and generated reference documentation;
 - the selected set and ordering of built-in implementations;
 - generated `figurectl.dev.bash`, `figurectl.bash`, and `figurectl.min.bash`
   artifact bytes;
@@ -74,6 +79,8 @@ The current trusted computing base includes:
   `mkdir`, and `rm`;
 - GNU Make and the maintained build recipes during artifact production;
 - the pinned Bash-Minifier dependency when producing the minified artifact;
+- the pinned `bash-doxygen` and `awk-doxygen` filters when generating reference
+  documentation;
 - bashdeps and other prepared build/release dependencies within their documented
   authority;
 - Graphviz `dot` when graphical rendering is requested or release behavior is
@@ -81,12 +88,17 @@ The current trusted computing base includes:
 - pinned GitHub Actions used to calculate versions, upload/download validated
   workflow artifacts, create attestations, and publish releases;
 - GitHub-hosted runner behavior and GitHub Actions artifact storage; and
-- GitHub's attestation, tag, and release services.
+- GitHub's attestation, tag, release, and Pages services.
 
 Graphviz is not trusted for shell interpretation because DOT/style text is never
 constructed as shell source.  It is nevertheless trusted as native code parsing
 caller-controlled graph input with the authority of the `figurectl` process or
 release-validation job.
+
+The Doxygen filters are not runtime dependencies, but they execute while parsing
+maintained source and can influence generated reference output.  Pinning and
+digest verification establish which filter bytes execute; they do not prove those
+filters are behaviorally safe or semantically correct.
 
 The validation job and publication job deliberately have different authority.
 Validation code remains part of the trusted build surface because it determines
@@ -95,7 +107,7 @@ attestation write, artifact-metadata write, or OIDC publication authority.
 
 ## Trust Boundaries
 
-The principal runtime and release boundaries are:
+The principal runtime, documentation, and release boundaries are:
 
 ```text
 maintained source
@@ -127,6 +139,12 @@ embedded trusted AWK       built-in registry
 ```
 
 ```text
+maintained Bash ----> pinned bash-doxygen --+
+                                              |
+maintained AWK -----> pinned awk-doxygen ----+--> Doxygen --> generated reference docs
+```
+
+```text
 main commit
     |
     v
@@ -146,10 +164,11 @@ privileged publication job
 
 Caller-controlled Markdown crosses into the AWK parser.  Caller-controlled
 `--figures-dir`, `--link-prefix`, and `--dot-style` values cross into filesystem or
-rendering behavior.  Maintained source crosses a supply/build boundary before it
-becomes an executable consumer artifact.  Validated release bytes cross a second
-boundary from the larger read-only validation surface into the narrowly privileged
-publication job.
+rendering behavior.  Maintained source crosses a documentation-tool boundary when
+language-specific filters translate it for Doxygen indexing and crosses a
+supply/build boundary before it becomes an executable consumer artifact.
+Validated release bytes cross a further boundary from the larger read-only
+validation surface into the narrowly privileged publication job.
 
 ## Threats, Mitigations, and Residual Risk
 
@@ -281,6 +300,27 @@ caller-controlled content.  figurectl does not sandbox Graphviz, impose graph-si
 limits, or promise protection from vulnerabilities or resource-exhaustion behavior
 inside the installed Graphviz version.
 
+### Documentation filter compromise or misinterpretation
+
+**Threat:** a compromised or defective `bash-doxygen` or `awk-doxygen` filter
+executes during documentation generation, misrepresents maintained source in
+published reference documentation, or uses the authority available to the
+Doxygen/Pages workflow unexpectedly.
+
+**Mitigations:** both filters are explicit repository dependencies declared in
+`dependencies.txt`, pinned to selected versions/commits, and verified against
+committed SHA-256 digests by bashdeps.  `make docs` consumes prepared filter state
+and does not acquire or repair dependencies.  Bash and AWK use separate Doxygen
+file patterns so one filter is not asked to interpret the other language.
+Generated documentation remains derivative; maintained comments and ADRs remain
+authoritative.
+
+**Residual risk:** digest verification proves identity of the selected filter
+bytes, not behavioral safety.  The documentation filters execute with the
+permissions of the documentation job, and generated reference output can still be
+incorrect if a filter or Doxygen itself contains a defect.  These filters do not
+enter the released figurectl runtime artifact.
+
 ### Validation code inherits publication authority
 
 **Threat:** repository-controlled source, synchronized dependencies, build tools,
@@ -340,8 +380,8 @@ The current design does not attempt to provide:
 - a third-party plugin trust or permission model;
 - cryptographic verification of maintained source during local development;
 - atomic replacement of the caller's complete publication directory;
-- protection from a compromised Bash, AWK, Graphviz, CI runner, GitHub Actions
-  service, or build host;
+- protection from a compromised Bash, AWK, Graphviz, Doxygen, documentation
+  filter, CI runner, GitHub Actions service, or build host;
 - semantic equivalence proof between text and DOT representations;
 - confidentiality for the embedded AWK implementation; or
 - an independently reproduced release build from a second trust domain.
@@ -351,12 +391,14 @@ The current design does not attempt to provide:
 Current evidence for this model includes:
 
 - accepted ADR constraints for build-time-only plugins and standalone artifacts;
+- pinned and digest-verified Bash/AWK documentation filters;
 - focused metadata/path-validation tests;
 - the same Bats public behavior suite against all artifact flavors;
 - Bash syntax validation of generated artifacts;
 - minimum-Bash compatibility execution;
 - deterministic-build comparison;
 - SHA-256 artifact companions;
+- generated documentation from prepared dependency state;
 - Graphviz-present release validation for graphical outputs;
 - isolated-runtime tests that remove maintained source and `vendor/` before
   exercising the generated program;
@@ -375,6 +417,7 @@ Revisit this threat model when a change adds or alters:
 - the AWK embedding representation;
 - comment stripping or minification;
 - dependency acquisition or pinning;
+- documentation filters or generated-documentation authority;
 - network access;
 - privilege or credential use;
 - release job permissions, artifact transport, attestation, or publication

@@ -1,5 +1,5 @@
 PROJECT_NAME           = "$(FIGURECTL_DOXYGEN_PROJECT_NAME)"
-PROJECT_BRIEF          = "Reference documentation for figurectl Bash source"
+PROJECT_BRIEF          = "Reference documentation for figurectl Bash and AWK source"
 OUTPUT_DIRECTORY       = doc/reference
 CREATE_SUBDIRS         = NO
 GENERATE_HTML          = YES
@@ -15,6 +15,7 @@ INPUT                  = src \
 RECURSIVE              = YES
 FILE_PATTERNS          = *.bash \
                          *.sh \
+                         *.awk \
                          *.md
 EXCLUDE                = dist \
                          tests \
@@ -25,9 +26,11 @@ EXCLUDE_PATTERNS       = */dist/* \
                          */vendor/* \
                          */doc/reference/*
 EXTENSION_MAPPING      = bash=C \
-                         sh=C
+                         sh=C \
+                         awk=C++
 FILTER_PATTERNS        = *.bash=vendor/doxygen-bash.awk \
-                         *.sh=vendor/doxygen-bash.awk
+                         *.sh=vendor/doxygen-bash.awk \
+                         *.awk=vendor/doxygen-awk.awk
 EXTRACT_ALL            = NO
 EXTRACT_PRIVATE        = NO
 EXTRACT_STATIC         = NO
