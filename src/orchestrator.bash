@@ -189,9 +189,10 @@ input_path_for_awk() {
 ## @details
 ## `make build` concatenates the explicitly ordered AWK processor modules into the
 ## generated `figurectl_processor_awk_write()` function.  This helper writes those
-## trusted bytes to a `mktemp` pathname, resolves selected-format capabilities from
-## the already-initialized registry, executes portable AWK with `-f`, removes the
-## temporary program, and returns the original AWK status.
+## trusted bytes to a portable `mktemp` pathname whose `XXXXXX` placeholder ends
+## the template, resolves selected-format capabilities from the initialized
+## registry, executes portable AWK with `-f`, removes the temporary program, and
+## returns the original AWK status.
 ##
 ## The source capability inventory is serialized as `name=extension` pairs by
 ## `figurectl_input_spec()`.  Registry token validation makes the serialization
@@ -220,7 +221,7 @@ run_awk_mode() {
   local awk_status
 
   input_path=$(input_path_for_awk)
-  processor_awk=$(mktemp "${TMPDIR:-/tmp}/figurectl.processor.XXXXXX.awk")
+  processor_awk=$(mktemp "${TMPDIR:-/tmp}/figurectl.processor.XXXXXX")
 
   if ! figurectl_processor_awk_write "$processor_awk"; then
     rm -f "$processor_awk"
