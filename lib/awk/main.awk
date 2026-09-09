@@ -8,9 +8,9 @@
 ## `payload`.
 ##
 ## The program consumes ordinary AWK input records.  It assumes the Bash
-## orchestrator has supplied `mode`, `want`, `wantsrc`, `figdir`, and
-## `linkprefix` with `-v`.  It targets portable AWK and does not modify `FS`,
-## `RS`, `OFS`, or `ORS`.
+## orchestrator has supplied `mode`, `wantsrc`, `wantkind`, `wantext`, `wantinfo`,
+## `source_spec`, `figdir`, and `linkprefix` with `-v`.  It targets portable AWK
+## and does not modify `FS`, `RS`, `OFS`, or `ORS`.
 ##
 ## Ordinary Markdown is emitted unchanged in `select` and `replace` modes.  The
 ## `render` mode suppresses ordinary Markdown because its data channel is the list
@@ -19,21 +19,24 @@
 ## content rather than comment syntax.
 
 ## @rule initialize_processor
-## @brief Initializes the figure parser before input processing begins.
+## @brief Initializes source capabilities and figure-parser state.
 ## @details
-## The state machine starts in `normal`, where records pass through until a
-## recognized figure metadata comment begins.  Other current-figure globals are
-## created lazily as figures are encountered.
+## `source_spec` is trusted build-selected capability metadata supplied by the
+## Bash registry.  `load_source_spec()` validates and materializes that inventory
+## before any caller-controlled Markdown is parsed.  The state machine then starts
+## in `normal`, where records pass through until a recognized figure metadata
+## comment begins.
 ##
 ## @par Trigger
 ## Runs once during BEGIN processing before the first input record is read.
 ## @par STDOUT
 ## Nothing is written to STDOUT.
 ## @par STDERR
-## Nothing is written to STDERR.
+## Malformed source capability metadata is reported through `fail()`.
 ## @par Side Effects
-## Sets the global `state` value to `normal`.
+## Populates `source_ext` and sets the global `state` value to `normal`.
 BEGIN {
+  load_source_spec(source_spec)
   state = "normal"
 }
 
@@ -58,7 +61,7 @@ BEGIN {
 ## valid closing fence completes the figure and invokes `finish_figure()`;
 ## otherwise the record is appended to the payload using the historical
 ## newline-accumulation behavior.  This rule deliberately does not normalize or
-## repair payload whitespace during the behavior-preserving extraction.
+## repair payload whitespace during the compatibility migration.
 ##
 ## @par Trigger
 ## Runs once for every ordinary input record.

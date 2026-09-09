@@ -8,19 +8,19 @@ The project is being extracted from the figure-processing implementation in
 public command surface and figure syntax while moving the behavior into a
 modular, documented, tested, independently released project.
 
-The maintained source is modular; releases will remain standalone Bash artifacts.
+Maintained source is modular; generated releases are standalone Bash artifacts.
 Built-in input/output implementations are discovered only during the build and
-embedded into the generated executable.  Runtime external plugins are not
+assembled into the generated executable.  Runtime external plugins are not
 supported.
 
 > [!NOTE]
-> The repository is currently in the behavior-preserving source-extraction phase.
-> `src/orchestrator.bash` and the portable AWK modules under `lib/awk/` implement
-> the compatibility baseline directly from maintained source.  The inherited
-> template artifact build remains in place until the build-time plugin and
-> standalone artifact migration lands in the next implementation phase.
+> The behavior-preserving source extraction and standalone artifact migration are
+> implemented in this repository.  The remaining migration step is adoption by
+> `wesley-dean/writing`, which will occur separately after a suitable figurectl
+> release exists.  Versioning and MegaLinter automation may remain temporarily
+> disabled during active development without changing the runtime architecture.
 
-## Intended v1.0 Behavior
+## v1.0 Behavior
 
 The public command surface is:
 
@@ -61,8 +61,8 @@ png                 dot
 SVG and PNG are derived from Graphviz DOT.  Graphviz `dot` is therefore a
 conditional runtime dependency required only for graphical rendering.
 
-See [`doc/specification.md`](doc/specification.md) for the complete intended
-observable contract.
+See [`doc/specification.md`](doc/specification.md) for the complete observable
+contract.
 
 ## Figure Source Form
 
@@ -116,30 +116,48 @@ ordinary Markdown
 for testing, inspection, and composition.
 
 The phases are architectural responsibilities, not a requirement for separate
-executables or a fixed number of physical parsing passes.
+executables or a fixed number of physical parsing passes.  The current
+implementation deliberately retains the original physical three-pass pipeline
+while the extraction stabilizes.
 
 ## Source and Plugin Architecture
 
-The maintained extraction uses responsibility-focused Bash and portable AWK
-source modules.  `src/orchestrator.bash` provides the current development-source
-entry point, and `lib/awk/` separates common helpers, metadata parsing, fence
-recognition, phase actions, the Markdown state machine, and DOT-style injection.
+Maintained implementation uses responsibility-focused Bash and portable AWK.
+Important source locations include:
 
-This extraction intentionally uses an explicit AWK module order and does not yet
-implement the generalized input/output plugin registry.  The next implementation
-phase will introduce deterministic build-time discovery for genuinely additive
-input/output modules and embed those implementations into standalone artifacts.
+```text
+src/orchestrator.bash
+lib/format-registry.bash
+lib/renderers/graphviz.bash
+lib/plugins/input/*.bash
+lib/plugins/output/*.bash
+lib/awk/*.awk
+scripts/build-artifact.bash
+```
 
-The initial project has no runtime plugin discovery, plugin search path, dynamic
-sourcing, hot loading, or third-party plugin installation API.  Adding such a
-mechanism would change the runtime trust and compatibility boundary and requires a
-new architectural decision.
+Core source ordering is explicit.  Input/output plugins are additive maintained
+modules discovered deterministically during `make build`; their paths are not
+searched at runtime.  Input plugins register authored-source capabilities such as
+materialized extensions.  Output plugins register the authored source they need,
+replacement shape, output extension, and optional renderer function.
 
-See ADR-018 for the governing decision.
+The portable AWK parser remains explicitly ordered core source rather than a
+runtime plugin system.  `make build` concatenates those maintained AWK modules into
+literal quoted heredocs inside each generated Bash artifact.  At runtime,
+figurectl writes the trusted embedded AWK to a secure temporary file and invokes
+`awk -f`; the maintained `lib/awk/` tree is not required after installation.
+
+The project has no runtime plugin discovery, plugin search path, dynamic sourcing,
+hot loading, or third-party plugin installation API.  Adding such a mechanism
+would change the runtime trust and compatibility boundary and requires a new
+architectural decision.
+
+See ADR-018 and
+[`doc/built-in-format-plugins.md`](doc/built-in-format-plugins.md).
 
 ## Runtime and Portability
 
-The intended v1.0 runtime baseline is:
+The v1.0 runtime baseline is:
 
 - Bash 4.3 or newer;
 - portable AWK; and
@@ -161,22 +179,24 @@ GNU Make is the canonical development and CI orchestration surface:
 - `make build` builds release artifacts from maintained source and prepared
   dependency state without synchronizing dependencies.
 - `make all` runs `deps` and then `build`.
-- `make check` validates maintained source with the configured static-analysis
-  tooling.
-- `make format` applies the repository's formatting policy.
-- `make test` runs behavior tests against every shipped artifact flavor.
-- `make test-report` writes JUnit reports under `test-results/`.
+- `make check` validates maintained Bash syntax/static analysis plus portable-AWK
+  loadability.
+- `make format` applies the repository's Bash formatting policy.
+- `make test` runs the public behavior suite against every shipped artifact
+  flavor.
+- `make test-report` writes one JUnit report per artifact flavor under
+  `test-results/`.
 - `make docs` generates reference documentation from prepared documentation
   tooling.
 - `make clean` removes generated build/test/reference output.
 - `make distclean` additionally removes prepared repository dependencies.
 
 `make` is a build/development dependency.  Consumers of released `figurectl`
-artifacts do not need Make.
+artifacts do not need Make, bashdeps, Bash-Minifier, or the maintained source tree.
 
 ## Release Artifacts
 
-The project retains the template's three-flavor release model:
+The project uses the three-flavor release model:
 
 ```text
 dist/figurectl.dev.bash
@@ -186,22 +206,50 @@ dist/figurectl.min.bash
 
 Each executable has an adjacent `.sha256` checksum companion.
 
-- `figurectl.dev.bash` retains assembled source documentation.
-- `figurectl.bash` is the conventional/default consumer artifact.
+- `figurectl.dev.bash` retains assembled source documentation, including embedded
+  AWK documentation.
+- `figurectl.bash` is the conventional/default consumer artifact and removes
+  full-line comments while preserving behavior.
 - `figurectl.min.bash` is derived from the ordinary artifact using the pinned
   Bash-Minifier build dependency.
 
 Every shipped executable flavor must satisfy the same observable behavior suite.
-This is particularly important because the generated Bash artifact will contain
+This is particularly important because the generated Bash artifact contains
 embedded AWK source and therefore passes through multiple source-to-source build
 transformations.
+
+## Testing
+
+The public Bats contract is executed against all three generated artifacts.  It
+covers the CLI, figure parsing, source selection, materialization, replacement,
+metadata validation, unsafe identifiers, stdin, Graphviz rendering, captions,
+link prefixes, and compatibility warnings.
+
+CI additionally verifies checksums, deterministic build bytes, Bash syntax,
+minimum-Bash representative behavior, and standalone execution after `src/`,
+`lib/`, `scripts/`, and `vendor/` are removed from the runtime environment.
+
+See [`doc/testing.md`](doc/testing.md).
+
+## Security and Trust Boundaries
+
+The build-time-only plugin boundary prevents local runtime filesystem state from
+silently changing which implementation executes.  Figure identifiers are
+validated before they become generated filenames, and Graphviz/style input is
+passed as data rather than evaluated as Bash source.
+
+The project does not sandbox Graphviz or promise that arbitrary malicious DOT is
+safe to parse.  Build dependencies and runtime interpreters/renderers remain part
+of the trusted computing base according to their authority.
+
+See [`doc/threat-model.md`](doc/threat-model.md) and ADR-016.
 
 ## Documentation
 
 The project uses documentation-driven, test-second development.
 
-- [`doc/specification.md`](doc/specification.md) defines intended observable
-  figurectl behavior.
+- [`doc/specification.md`](doc/specification.md) defines observable figurectl
+  behavior.
 - [`doc/decisions.md`](doc/decisions.md) is the concise architecture map.
 - [`doc/adr/`](doc/adr/) preserves architectural reasoning and tradeoffs.
 - [`doc/engineering-philosophy.md`](doc/engineering-philosophy.md) records reusable
@@ -210,30 +258,28 @@ The project uses documentation-driven, test-second development.
   maintained Bash documentation.
 - [`doc/awk-documentation-standard.md`](doc/awk-documentation-standard.md) governs
   maintained AWK documentation.
+- [`doc/built-in-format-plugins.md`](doc/built-in-format-plugins.md) defines the
+  internal build-time format-module contract.
+- [`doc/threat-model.md`](doc/threat-model.md) records the current security and
+  trust-boundary analysis.
 - [`doc/testing.md`](doc/testing.md) defines testing expectations.
 - [`doc/release-verification.md`](doc/release-verification.md) defines release
   verification sequencing.
 
-The AWK documentation standard is intentionally language-specific.  It documents
-AWK function returns, pseudo-local formal parameters, global state, record
-context, and `BEGIN`/`END`/pattern-action rules rather than mechanically applying
-Bash semantics to AWK.
-
 The `awk-doxygen` filter is being developed separately.  Maintained AWK source
-follows the standard regardless of whether generated AWK reference documentation
-is available yet.
+follows the adopted standard regardless of whether generated AWK reference
+output is available yet.
 
 ## Architecture Lineage
 
-The figure source and processing model is adapted from
-`wesley-dean/writing` ADR-035, which remains historical governance for the writing
-repository.  figurectl ADR-017 extracts the reusable behavior while leaving
-writing-specific typography, publisher policy, and manuscript governance in the
-writing repository.
+The figure source and processing model is adapted from `wesley-dean/writing`
+ADR-035, which remains historical governance for the writing repository.
+figurectl ADR-017 extracts the reusable behavior while leaving writing-specific
+typography, publisher policy, and manuscript governance in the writing repository.
 
 The generalized built-in input/output architecture deliberately differs from the
 original local-script decision to avoid a plugin framework.  figurectl ADR-018
-records why the standalone product now chooses deterministic build-time extension
+records why the standalone product chooses deterministic build-time extension
 while preserving a single-file runtime boundary.
 
 ## License

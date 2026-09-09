@@ -8,18 +8,21 @@ working on figurectl.  It is intentionally smaller than the ADR corpus.
 Before consequential work:
 
 1. Read `README.md` for the project overview and current migration status.
-2. Read `doc/specification.md` for the intended public behavior contract.
+2. Read `doc/specification.md` for the public behavior contract.
 3. Read `doc/engineering-philosophy.md` for reusable engineering posture.
 4. Read `doc/decisions.md` for the concise architectural map.
 5. Read the ADR index in `doc/adr/README.md` and the ADRs governing the area being
    changed.
-6. Read `doc/threat-modeling.md` when work changes authority, untrusted-input
-   handling, filesystem output, subprocess behavior, dependencies, build
-   transformations, dynamic loading, or other security-relevant boundaries.
-7. Read `doc/documentation-standard.md` before editing maintained Bash comments.
-8. Read `doc/awk-documentation-standard.md` before editing maintained AWK source.
-9. Read `doc/testing.md` before changing tests or generated artifacts.
-10. Read `doc/release-verification.md` before changing release behavior.
+6. Read `doc/built-in-format-plugins.md` before changing source/output plugin
+   registration, discovery, dispatch, or capability serialization.
+7. Read `doc/threat-model.md` and `doc/threat-modeling.md` when work changes
+   authority, untrusted-input handling, filesystem output, subprocess behavior,
+   dependencies, build transformations, plugin boundaries, or other
+   security-relevant behavior.
+8. Read `doc/documentation-standard.md` before editing maintained Bash comments.
+9. Read `doc/awk-documentation-standard.md` before editing maintained AWK source.
+10. Read `doc/testing.md` before changing tests or generated artifacts.
+11. Read `doc/release-verification.md` before changing release behavior.
 
 When implementation, tests, specification, and an Accepted ADR conflict, surface
 the conflict.  Do not silently treat current code as the architectural source of
@@ -27,26 +30,26 @@ truth.
 
 ## Current Migration State
 
-The repository is being adapted from template-bash into the standalone figurectl
-product.
+The behavior-preserving extraction from `wesley-dean/writing` now exists as
+maintained modular Bash/AWK source, and the artifact migration assembles that
+source into standalone figurectl development, ordinary, and minified Bash files.
 
-The behavior-preserving maintained-source extraction now lives in
-`src/orchestrator.bash` and `lib/awk/`.  The source runner loads the explicit AWK
-module set directly from the repository and exists to prove compatibility before
-artifact assembly and build-time plugin discovery are changed.
+Input/output plugin discovery occurs only during `make build`.  Generated
+artifacts contain their format implementations and embedded AWK programs; they do
+not require `src/`, `lib/`, `scripts/`, `vendor/`, or plugin directories at
+runtime.
 
-The inherited template artifact build, starter entry point, and starter plugin
-files remain temporarily in place.  Do not treat those generated starter
-artifacts as figurectl's public implementation.  Replacing the build/artifact
-path and introducing the ADR-018 built-in plugin architecture belong to the next
-implementation phase.
+The remaining cross-repository migration is adoption by `wesley-dean/writing`
+after a suitable figurectl release exists.  Versioning and MegaLinter may remain
+temporarily disabled during active development; do not re-enable them merely as
+part of unrelated runtime work.
 
-The compatibility baseline is the figure-processing behavior originally maintained
-as `scripts/figurectl.bash` in `wesley-dean/writing`.
+The compatibility baseline remains the figure-processing behavior originally
+maintained as `scripts/figurectl.bash` in `wesley-dean/writing`.
 
 ## Public Contract
 
-The initial public commands are:
+The public commands are:
 
 ```text
 select
@@ -66,30 +69,62 @@ See `doc/specification.md` and ADR-017.
 
 ## Source and Plugin Architecture
 
-The maintained implementation uses responsibility-focused Bash plus portable AWK.
-The current extraction keeps AWK processing in explicit modules for common
-helpers, metadata, fences, phase actions, the record state machine, and DOT-style
-injection.
+Maintained implementation uses responsibility-focused Bash plus portable AWK.
 
-Core source ordering is explicit.  Input/output modules that are genuinely
-additive may be discovered deterministically during build.  The generalized
-build-time input/output plugin layer has not yet been applied to the extracted
-source and should not be smuggled into behavior-preserving changes.
+Bash core source is explicitly ordered.  Input plugins under
+`lib/plugins/input/` and output plugins under `lib/plugins/output/` are additive
+leaf modules discovered deterministically during build.  They register
+capabilities into `lib/format-registry.bash` after they have already been selected
+for artifact assembly.
 
-Plugin discovery is **build-time only**.  Generated artifacts contain every
-implementation they support.
+The registry is runtime initialization of built-in code, **not runtime plugin
+discovery**.  Generated artifacts do not scan directories, source implementation
+files, honor plugin search paths, or load third-party code.
+
+The portable AWK parser remains explicitly ordered core source under `lib/awk/`.
+Build assembly concatenates the ordered AWK modules into literal quoted heredocs
+inside generated Bash artifacts.  Runtime writes the trusted embedded AWK to a
+`mktemp` pathname and invokes `awk -f`; it does not load maintained AWK files.
 
 Do not add runtime plugin directory scanning, dynamic sourcing, hot loading,
 third-party plugin installation paths, or arbitrary plugin search paths.  Any
 external runtime plugin mechanism requires a new ADR because it changes trust,
 distribution, and compatibility boundaries.
 
-See ADR-014 and ADR-018.
+See ADR-014, ADR-018, and `doc/built-in-format-plugins.md`.
+
+## Build-Time Format Contract
+
+Input plugins register:
+
+```text
+logical source name
+materialized source extension
+```
+
+Output plugins register:
+
+```text
+logical output name
+required authored source
+replacement kind
+output extension
+optional renderer function
+optional fenced-block information string
+```
+
+Current replacement kinds are `fence` and `image`.  SVG and PNG register the
+shared Graphviz renderer.  Core orchestration must query these capabilities rather
+than reintroducing distributed `case` statements for every supported format.
+
+Peer plugin order must not carry hidden semantic dependencies.  If order becomes
+architecturally meaningful, move that dependency into explicit core ordering or
+record a governing decision.
 
 ## Bash and AWK Portability
 
-The Bash compatibility floor is 4.3 unless a later Accepted ADR raises it.
-Do not use post-4.3 Bash features accidentally.
+The Bash compatibility floor is 4.3 unless a later Accepted ADR raises it.  Do not
+use post-4.3 Bash features accidentally.
 
 Maintained AWK is portable AWK unless governing documentation explicitly records
 an implementation-specific dependency.  Do not introduce gawk-only, mawk-only,
@@ -127,8 +162,10 @@ GNU Make is the canonical development/CI orchestration surface.
 - `make build` consumes maintained source and prepared dependencies without
   synchronizing dependencies.
 - `make all` runs `deps` then `build`.
-- `make docs`, `make test`, and `make test-report` consume prepared state and must
-  not silently synchronize dependencies.
+- `make check` validates maintained Bash and portable-AWK source.
+- `make test` and `make test-report` exercise the exact generated artifacts.
+- `make docs` consumes prepared documentation dependencies and must not silently
+  synchronize them.
 
 bashdeps manages repository dependencies, not system packages.  Build/runtime
 system commands such as Make, Bash, AWK, Graphviz, Bats, Doxygen, ShellCheck, and
@@ -136,7 +173,7 @@ shfmt remain outside bashdeps package-management scope.
 
 ## Release Artifacts
 
-The intended release files are:
+The generated files are:
 
 ```text
 dist/figurectl.dev.bash
@@ -147,14 +184,15 @@ dist/figurectl.min.bash
 dist/figurectl.min.bash.sha256
 ```
 
-All executable flavors represent the same public program and must receive the
-same observable behavior suite.
+All executable flavors represent the same public program and receive the same
+observable behavior suite.
 
-The ordinary `figurectl.bash` artifact is the conventional/default consumer
-artifact.  The development artifact retains documentation.  The minified artifact
-is derived from the ordinary artifact using prepared Bash-Minifier state.
+The development artifact retains Bash and embedded-AWK documentation.  The
+ordinary artifact removes full-line comments while preserving the shebang.  The
+minified artifact is derived from the ordinary artifact using prepared
+Bash-Minifier state.
 
-Because the Bash artifact will contain embedded AWK source, tests must prove that
+Because the Bash artifact contains embedded AWK source, tests must prove that
 assembly, comment stripping, and minification preserve behavior rather than
 assuming those transformations are harmless.
 
@@ -171,40 +209,64 @@ For consequential behavior:
 5. validate all relevant artifact flavors; and
 6. compare the result back against the governing constraints.
 
+`tests/figurectl.bats` is the public runtime contract and is executed against the
+development, ordinary, and minified artifacts.  `tests/artifacts.bats` validates
+artifact/integrity properties, while `tests/compat-bash43.bash` exercises
+representative behavior under the compatibility floor.
+
 Tests should cover observable behavior rather than incidental source layout.
 Negative assertions are required where the contract says something must not
-occur, such as unsafe pathname use, unexpected diagnostics on stdout, runtime
-plugin discovery, or leakage of non-selected figure representations.
+occur, such as path traversal, unexpected diagnostics on stdout, runtime plugin
+discovery, or leakage of non-selected figure representations.
 
-During the behavior-preserving extraction, `tests/figurectl-source.bats` exercises
-`src/orchestrator.bash` directly.  The current Make artifact matrix still belongs
-to the inherited template.  Phase 3 must move the same behavior contract onto the
-actual figurectl development, ordinary, and minified artifacts.
+CI additionally executes copied artifacts after removing `src/`, `lib/`,
+`scripts/`, and `vendor/` to prove the single-file runtime boundary.
+
+## Security and Threat Modeling
+
+The current project-specific threat model is `doc/threat-model.md`.
+
+Important invariants include:
+
+- build-time discovery is the only plugin discovery;
+- generated artifacts execute only built-in assembled implementations;
+- figure identifiers are validated before filesystem path construction;
+- embedded AWK heredoc delimiters are checked for source collisions;
+- temporary AWK program paths are created with `mktemp`;
+- DOT/style content is data, not Bash source; and
+- Graphviz remains a trusted conditional native-code parser rather than a
+  sandboxed component.
+
+Changes that weaken or expand these boundaries require threat-model review and may
+require a new ADR.
 
 ## Scope Discipline
 
 Prefer the smallest coherent change that satisfies governing decisions.  Do not
-mix unrelated cleanup into extraction work.
+mix unrelated cleanup into implementation work.
 
-The initial implementation migration should preserve behavior before improving the
-parser or changing public semantics.  Identified defects or cleanup opportunities
-should be handled as separate reviewable changes unless they block compatibility.
+The migration preserves observable writing-repository behavior before improving
+parser semantics.  Deliberately preserved quirks documented in
+`doc/source-extraction.md` should be changed only in focused, reviewable work.
 
 ## Repository Locations
 
-- `src/orchestrator.bash`: maintained-source figurectl orchestration during the
-  extraction phase.
-- `src/main.bash`: inherited starter entry point pending artifact migration.
-- `lib/awk/`: maintained portable-AWK figure processor modules.
-- `lib/plugin-registry.bash` and `lib/plugins/`: inherited starter plugin example
-  pending the figurectl build-time plugin implementation.
-- `tests/`: Bats behavior tests and fixtures.
-- `doc/specification.md`: intended public figurectl contract.
+- `src/orchestrator.bash`: product-facing command orchestration and entry point.
+- `lib/format-registry.bash`: built-in format capability registry.
+- `lib/renderers/`: explicitly ordered renderer implementations used by output
+  plugins.
+- `lib/plugins/input/`: build-discovered authored-source plugins.
+- `lib/plugins/output/`: build-discovered requested-output plugins.
+- `lib/awk/`: explicitly ordered portable-AWK figure processor and style modules.
+- `scripts/build-artifact.bash`: build-only standalone artifact assembler.
+- `tests/`: Bats behavior tests and Bash compatibility helper.
+- `doc/specification.md`: public figurectl contract.
+- `doc/built-in-format-plugins.md`: internal built-in format plugin contract.
+- `doc/threat-model.md`: project-specific threat model.
 - `doc/decisions.md`: concise Accepted-decision map.
 - `doc/adr/`: full architectural decisions.
 - `doc/documentation-standard.md`: maintained Bash documentation standard.
 - `doc/awk-documentation-standard.md`: maintained AWK documentation standard.
-- `doc/threat-modeling.md`: security-analysis guidance.
 - `doc/reference/`: generated reference documentation; do not commit.
 - `vendor/`: generated dependency state; do not commit.
 - `dist/`: generated release artifacts; do not edit directly.

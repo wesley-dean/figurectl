@@ -1,9 +1,8 @@
 #!/usr/bin/env bats
 
 setup() {
-  REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
-  FIGURECTL_SOURCE="${REPO_ROOT}/src/orchestrator.bash"
-  TEST_ROOT="$(mktemp -d "${BATS_TEST_TMPDIR:-/tmp}/figurectl-source.XXXXXX")"
+  : "${FIGURECTL_ARTIFACT:?FIGURECTL_ARTIFACT must identify the artifact under test}"
+  TEST_ROOT="$(mktemp -d "${BATS_TEST_TMPDIR:-/tmp}/figurectl.XXXXXX")"
   FIGURES_DIR="${TEST_ROOT}/figures"
   INPUT_FILE="${TEST_ROOT}/input.md"
   OUTPUT_FILE="${TEST_ROOT}/output.md"
@@ -50,10 +49,28 @@ digraph {
 EOF
 }
 
+@test "help describes the figurectl command surface" {
+  run "${FIGURECTL_ARTIFACT}" --help
+
+  [ "${status}" -eq 0 ]
+  [[ "${output}" == *'figurectl.bash select'* ]]
+  [[ "${output}" == *'figurectl.bash render'* ]]
+  [[ "${output}" == *'figurectl.bash replace'* ]]
+  [[ "${output}" == *'figurectl.bash process'* ]]
+  [[ "${output}" == *'Formats: text, dot, svg, png'* ]]
+}
+
+@test "unsupported requested formats are rejected as invalid usage" {
+  run "${FIGURECTL_ARTIFACT}" select --format jpeg "${INPUT_FILE}"
+
+  [ "${status}" -eq 2 ]
+  [[ "${output}" == *'unsupported format: jpeg'* ]]
+}
+
 @test "select keeps the requested source representation and ordinary Markdown" {
   write_paired_figure
 
-  run bash "${FIGURECTL_SOURCE}" select --format text "${INPUT_FILE}"
+  run "${FIGURECTL_ARTIFACT}" select --format text "${INPUT_FILE}"
 
   [ "${status}" -eq 0 ]
   [[ "${output}" == *'adrctl.bash generate graph > doc/adr/decisions.dot'* ]]
@@ -66,7 +83,7 @@ EOF
 @test "process text materializes text and replaces figure directives" {
   write_paired_figure
 
-  run bash "${FIGURECTL_SOURCE}" process \
+  run "${FIGURECTL_ARTIFACT}" process \
     --format text \
     --figures-dir "${FIGURES_DIR}" \
     --output "${OUTPUT_FILE}" \
@@ -87,8 +104,9 @@ EOF
   local selected="${TEST_ROOT}/selected.md"
   local replaced="${TEST_ROOT}/replaced.md"
 
-  bash "${FIGURECTL_SOURCE}" select --format dot "${INPUT_FILE}" >"${selected}"
-  run bash "${FIGURECTL_SOURCE}" render \
+  "${FIGURECTL_ARTIFACT}" select --format dot "${INPUT_FILE}" >"${selected}"
+
+  run "${FIGURECTL_ARTIFACT}" render \
     --format dot \
     --figures-dir "${FIGURES_DIR}" \
     "${selected}"
@@ -96,7 +114,7 @@ EOF
   [ "${status}" -eq 0 ]
   [ -s "${FIGURES_DIR}/figure01.dot" ]
 
-  bash "${FIGURECTL_SOURCE}" replace \
+  "${FIGURECTL_ARTIFACT}" replace \
     --format dot \
     --figures-dir "${FIGURES_DIR}" \
     "${selected}" >"${replaced}"
@@ -110,7 +128,7 @@ EOF
 @test "paired text and dot representations may share one identifier" {
   write_paired_figure
 
-  run bash "${FIGURECTL_SOURCE}" process \
+  run "${FIGURECTL_ARTIFACT}" process \
     --format text \
     --figures-dir "${FIGURES_DIR}" \
     "${INPUT_FILE}"
@@ -133,13 +151,13 @@ second
 ```
 EOF
 
-  run bash "${FIGURECTL_SOURCE}" select --format text "${INPUT_FILE}"
+  run "${FIGURECTL_ARTIFACT}" select --format text "${INPUT_FILE}"
 
   [ "${status}" -eq 2 ]
   [[ "${output}" == *'duplicate text figure id: duplicate'* ]]
 }
 
-@test "unsafe figure identifiers are rejected before filesystem use" {
+@test "unsafe figure identifiers are rejected before escaped output is written" {
   cat >"${INPUT_FILE}" <<'EOF'
 <!-- figure id="../escape" format="text" alt="Unsafe" -->
 ```text
@@ -147,13 +165,24 @@ unsafe
 ```
 EOF
 
-  run bash "${FIGURECTL_SOURCE}" process \
-    --format text \
-    --figures-dir "${FIGURES_DIR}" \
-    "${INPUT_FILE}"
+  local stdout_file="${TEST_ROOT}/unsafe.stdout"
+  local stderr_file="${TEST_ROOT}/unsafe.stderr"
 
-  [ "${status}" -eq 2 ]
-  [[ "${output}" == *'unsafe figure id: ../escape'* ]]
+  run bash -c '"$1" process --format text --figures-dir "$2" "$3" >"$4" 2>"$5"' \
+    _ "${FIGURECTL_ARTIFACT}" "${FIGURES_DIR}" "${INPUT_FILE}" \
+    "${stdout_file}" "${stderr_file}"
+
+  if [ "${status}" -ne 2 ]; then
+    printf 'expected unsafe identifier status 2; got %s\n' "${status}" >&2
+    printf '%s\n' '--- stdout ---' >&2
+    cat "${stdout_file}" >&2
+    printf '%s\n' '--- stderr ---' >&2
+    cat "${stderr_file}" >&2
+    return 1
+  fi
+
+  grep -Fq -- 'unsafe figure id: ../escape' "${stderr_file}"
+  [ ! -s "${stdout_file}" ]
   [ ! -e "${TEST_ROOT}/escape.txt" ]
 }
 
@@ -165,7 +194,7 @@ not actually text
 ```
 EOF
 
-  run bash "${FIGURECTL_SOURCE}" select --format text "${INPUT_FILE}"
+  run "${FIGURECTL_ARTIFACT}" select --format text "${INPUT_FILE}"
 
   [ "${status}" -eq 2 ]
   [[ "${output}" == *'declares format text but fence uses dot'* ]]
@@ -179,7 +208,7 @@ payload with ``` inside
 ~~~~
 EOF
 
-  run bash "${FIGURECTL_SOURCE}" process \
+  run "${FIGURECTL_ARTIFACT}" process \
     --format text \
     --figures-dir "${FIGURES_DIR}" \
     "${INPUT_FILE}"
@@ -189,7 +218,7 @@ EOF
   [[ "${output}" == *'````text'* ]]
 }
 
-@test "missing id and alt retain compatibility fallback behavior" {
+@test "missing id and alt retain compatibility fallback behavior on stderr" {
   cat >"${INPUT_FILE}" <<'EOF'
 <!-- figure format="text" -->
 ```text
@@ -197,9 +226,12 @@ fallback
 ```
 EOF
 
+  local stdout_file="${TEST_ROOT}/stdout.txt"
   local stderr_file="${TEST_ROOT}/stderr.txt"
-  run bash -c 'bash "$1" process --format text --figures-dir "$2" "$3" 2>"$4"' \
-    _ "${FIGURECTL_SOURCE}" "${FIGURES_DIR}" "${INPUT_FILE}" "${stderr_file}"
+
+  run bash -c '"$1" process --format text --figures-dir "$2" "$3" >"$4" 2>"$5"' \
+    _ "${FIGURECTL_ARTIFACT}" "${FIGURES_DIR}" "${INPUT_FILE}" \
+    "${stdout_file}" "${stderr_file}"
 
   [ "${status}" -eq 0 ]
   [ -s "${FIGURES_DIR}/figure-001.txt" ]
@@ -207,7 +239,8 @@ EOF
   grep -Fq -- \
     'warning: figure figure-001 is missing alt text' \
     "${stderr_file}"
-  [[ "${output}" == *'fallback'* ]]
+  grep -Fq -- 'fallback' "${stdout_file}"
+  ! grep -Fq -- 'warning:' "${stdout_file}"
 }
 
 @test "standard input is used when no input path is supplied" {
@@ -220,13 +253,35 @@ from stdin
 ```
 EOF
 
-  run bash -c 'cat "$1" | bash "$2" process --format text --figures-dir "$3"' \
-    _ "${INPUT_FILE}" "${FIGURECTL_SOURCE}" "${FIGURES_DIR}"
+  run bash -c 'cat "$1" | "$2" process --format text --figures-dir "$3"' \
+    _ "${INPUT_FILE}" "${FIGURECTL_ARTIFACT}" "${FIGURES_DIR}"
 
   [ "${status}" -eq 0 ]
   [[ "${output}" == *'Before'* ]]
   [[ "${output}" == *'from stdin'* ]]
   [ -s "${FIGURES_DIR}/stdin.txt" ]
+}
+
+@test "svg output uses dot source and caller-selected link prefix" {
+  command -v dot >/dev/null 2>&1 || skip "Graphviz dot is not installed"
+  write_paired_figure
+  local svg_dir="${TEST_ROOT}/svg"
+  local link_prefix="assets/figures"
+  mkdir -p "${svg_dir}"
+
+  run "${FIGURECTL_ARTIFACT}" process \
+    --format svg \
+    --figures-dir "${svg_dir}" \
+    --link-prefix "${link_prefix}" \
+    --output "${OUTPUT_FILE}" \
+    "${INPUT_FILE}"
+
+  [ "${status}" -eq 0 ]
+  [ -s "${svg_dir}/figure01.dot" ]
+  [ -s "${svg_dir}/figure01.svg" ]
+  grep -Fq -- '![Build flow](assets/figures/figure01.svg)' "${OUTPUT_FILE}"
+  ! grep -Fq -- '+--> branch' "${OUTPUT_FILE}"
+  ! grep -Fq -- 'digraph {' "${OUTPUT_FILE}"
 }
 
 @test "png output uses dot source and caller-selected link prefix" {
@@ -236,7 +291,7 @@ EOF
   local link_prefix="assets/figures"
   mkdir -p "${png_dir}"
 
-  run bash "${FIGURECTL_SOURCE}" process \
+  run "${FIGURECTL_ARTIFACT}" process \
     --format png \
     --figures-dir "${png_dir}" \
     --link-prefix "${link_prefix}" \
@@ -249,4 +304,24 @@ EOF
   grep -Fq -- '![Build flow](assets/figures/figure01.png)' "${OUTPUT_FILE}"
   ! grep -Fq -- '+--> branch' "${OUTPUT_FILE}"
   ! grep -Fq -- 'digraph {' "${OUTPUT_FILE}"
+}
+
+@test "caller-owned DOT style is applied before Graphviz rendering" {
+  command -v dot >/dev/null 2>&1 || skip "Graphviz dot is not installed"
+  write_paired_figure
+  local style_file="${TEST_ROOT}/style.dot"
+
+  cat >"${style_file}" <<'EOF'
+  graph [rankdir=LR];
+EOF
+
+  run "${FIGURECTL_ARTIFACT}" process \
+    --format svg \
+    --figures-dir "${FIGURES_DIR}" \
+    --dot-style "${style_file}" \
+    --output "${OUTPUT_FILE}" \
+    "${INPUT_FILE}"
+
+  [ "${status}" -eq 0 ]
+  [ -s "${FIGURES_DIR}/figure01.svg" ]
 }
