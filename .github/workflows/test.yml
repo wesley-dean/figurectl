@@ -40,6 +40,20 @@ jobs:
       - name: Validate maintained source
         run: make check
 
+      - name: Verify documentation does not acquire missing adrctl
+        run: |
+          mkdir -p vendor
+          : >vendor/doxygen-bash.awk
+          : >vendor/doxygen-awk.awk
+          stderr="${RUNNER_TEMP}/docs.stderr"
+          if make docs >/dev/null 2>"${stderr}"; then
+            printf '%s\n' 'make docs unexpectedly repaired missing adrctl state' >&2
+            exit 1
+          fi
+          grep -F 'Missing documentation dependency vendor/adrctl.bash' "${stderr}"
+          test ! -e vendor/adrctl.bash
+          rm -rf vendor
+
       - name: Synchronize and verify repository dependencies
         run: |
           make deps
@@ -47,7 +61,7 @@ jobs:
 
       - name: Verify make all from fresh generated state
         run: |
-          rm -rf dist test-results doc/reference
+          rm -rf dist test-results doc/reference doc/adr/README.md
           make all
           make deps-check
 
@@ -96,7 +110,11 @@ jobs:
         run: |
           make docs
           make deps-check
+          test -f doc/adr/README.md
+          grep -F 'ADR-021' doc/adr/README.md
+          git check-ignore -q doc/adr/README.md
           test -f doc/reference/index.html
+          git check-ignore -q doc/reference/index.html
           test -z "$(git status --short)"
 
       - name: Run Bats tests for every artifact flavor
