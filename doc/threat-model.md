@@ -20,7 +20,8 @@ The current review covers:
 - Markdown figure parsing and identifier validation;
 - generated-file paths beneath caller-selected figure directories;
 - conditional Graphviz execution for SVG/PNG rendering;
-- pinned Bash/AWK Doxygen filters used to generate reference documentation;
+- pinned Bash/AWK Doxygen filters and adrctl used to generate reference
+  documentation;
 - release validation of exact generated artifacts;
 - transfer of validated release files between GitHub Actions jobs; and
 - separation of read-only validation authority from privileged attestation and
@@ -40,8 +41,8 @@ The primary security and integrity objectives are:
    filenames and are removed after use where practical;
 6. ordinary data output and diagnostics retain their documented stdout/stderr
    separation;
-7. documentation generation uses reviewed, pinned language-specific filters from
-   prepared dependency state rather than acquiring executable filter code during
+7. documentation generation uses reviewed, pinned documentation tooling from
+   prepared dependency state rather than acquiring executable tooling during
    `make docs`;
 8. repository build/test/dependency code does not receive publication authority
    merely because it participates in release validation; and
@@ -53,7 +54,8 @@ The primary security and integrity objectives are:
 Assets relevant to these objectives include:
 
 - maintained Bash, AWK, and plugin source;
-- maintained Doxygen comments and generated reference documentation;
+- maintained Doxygen comments, ADRs, and ADR landing-page framing;
+- generated ADR navigation and reference documentation;
 - the selected set and ordering of built-in implementations;
 - generated `figurectl.dev.bash`, `figurectl.bash`, and `figurectl.min.bash`
   artifact bytes;
@@ -79,8 +81,8 @@ The current trusted computing base includes:
   `mkdir`, and `rm`;
 - GNU Make and the maintained build recipes during artifact production;
 - the pinned Bash-Minifier dependency when producing the minified artifact;
-- the pinned `bash-doxygen` and `awk-doxygen` filters when generating reference
-  documentation;
+- the pinned `bash-doxygen`, `awk-doxygen`, and `adrctl` tools when generating
+  reference documentation;
 - bashdeps and other prepared build/release dependencies within their documented
   authority;
 - Graphviz `dot` when graphical rendering is requested or release behavior is
@@ -95,10 +97,12 @@ constructed as shell source.  It is nevertheless trusted as native code parsing
 caller-controlled graph input with the authority of the `figurectl` process or
 release-validation job.
 
-The Doxygen filters are not runtime dependencies, but they execute while parsing
-maintained source and can influence generated reference output.  Pinning and
-digest verification establish which filter bytes execute; they do not prove those
-filters are behaviorally safe or semantically correct.
+The documentation tools are not runtime dependencies, but they execute while
+building published reference material and can influence generated output.  The
+Doxygen filters translate maintained Bash and AWK source for indexing, while
+adrctl reads maintained ADR Markdown and framing to generate linked navigation.
+Pinning and digest verification establish which tool bytes execute; they do not
+prove those tools are behaviorally safe or semantically correct.
 
 The validation job and publication job deliberately have different authority.
 Validation code remains part of the trusted build surface because it determines
@@ -139,9 +143,11 @@ embedded trusted AWK       built-in registry
 ```
 
 ```text
-maintained Bash ----> pinned bash-doxygen --+
-                                              |
-maintained AWK -----> pinned awk-doxygen ----+--> Doxygen --> generated reference docs
+maintained ADRs/framing --> pinned adrctl --> generated ADR landing page --+
+                                                                          |
+maintained Bash ----------> pinned bash-doxygen --+                        |
+                                                  +--> Doxygen ------------+--> generated reference docs
+maintained AWK -----------> pinned awk-doxygen ---+
 ```
 
 ```text
@@ -164,11 +170,13 @@ privileged publication job
 
 Caller-controlled Markdown crosses into the AWK parser.  Caller-controlled
 `--figures-dir`, `--link-prefix`, and `--dot-style` values cross into filesystem or
-rendering behavior.  Maintained source crosses a documentation-tool boundary when
-language-specific filters translate it for Doxygen indexing and crosses a
-supply/build boundary before it becomes an executable consumer artifact.
-Validated release bytes cross a further boundary from the larger read-only
-validation surface into the narrowly privileged publication job.
+rendering behavior.  Maintained Bash and AWK cross a documentation-tool boundary
+when language-specific filters translate them for Doxygen indexing; maintained ADR
+source and framing cross a documentation-tool boundary when adrctl generates the
+landing page.  Maintained source also crosses a supply/build boundary before it
+becomes an executable consumer artifact.  Validated release bytes cross a further
+boundary from the larger read-only validation surface into the narrowly privileged
+publication job.
 
 ## Threats, Mitigations, and Residual Risk
 
@@ -300,26 +308,28 @@ caller-controlled content.  figurectl does not sandbox Graphviz, impose graph-si
 limits, or promise protection from vulnerabilities or resource-exhaustion behavior
 inside the installed Graphviz version.
 
-### Documentation filter compromise or misinterpretation
+### Documentation tooling compromise or misinterpretation
 
-**Threat:** a compromised or defective `bash-doxygen` or `awk-doxygen` filter
-executes during documentation generation, misrepresents maintained source in
-published reference documentation, or uses the authority available to the
-Doxygen/Pages workflow unexpectedly.
+**Threat:** a compromised or defective `bash-doxygen`, `awk-doxygen`, or `adrctl`
+artifact executes during documentation generation, misrepresents maintained source
+or ADR navigation in published reference documentation, or uses the authority
+available to the Doxygen/Pages workflow unexpectedly.
 
-**Mitigations:** both filters are explicit repository dependencies declared in
+**Mitigations:** all three tools are explicit repository dependencies declared in
 `dependencies.txt`, pinned to selected versions/commits, and verified against
-committed SHA-256 digests by bashdeps.  `make docs` consumes prepared filter state
-and does not acquire or repair dependencies.  Bash and AWK use separate Doxygen
-file patterns so one filter is not asked to interpret the other language.
-Generated documentation remains derivative; maintained comments and ADRs remain
-authoritative.
+committed SHA-256 digests by bashdeps.  `make docs` consumes prepared dependency
+state and does not acquire or repair dependencies.  Bash and AWK use separate
+Doxygen file patterns so one filter is not asked to interpret the other language.
+adrctl is invoked only for TOC report generation; Make stages its stdout in a
+temporary same-directory candidate and replaces the generated landing page only
+after successful generation.  Generated documentation remains derivative;
+maintained comments, ADRs, and framing remain authoritative.
 
-**Residual risk:** digest verification proves identity of the selected filter
-bytes, not behavioral safety.  The documentation filters execute with the
-permissions of the documentation job, and generated reference output can still be
-incorrect if a filter or Doxygen itself contains a defect.  These filters do not
-enter the released figurectl runtime artifact.
+**Residual risk:** digest verification proves identity of the selected tool bytes,
+not behavioral safety.  The documentation tools execute with the permissions of
+the documentation job, and generated reference output can still be incorrect if
+one of those tools or Doxygen contains a defect.  None of these documentation
+tools enters the released figurectl runtime artifact.
 
 ### Validation code inherits publication authority
 
@@ -380,8 +390,8 @@ The current design does not attempt to provide:
 - a third-party plugin trust or permission model;
 - cryptographic verification of maintained source during local development;
 - atomic replacement of the caller's complete publication directory;
-- protection from a compromised Bash, AWK, Graphviz, Doxygen, documentation
-  filter, CI runner, GitHub Actions service, or build host;
+- protection from a compromised Bash, AWK, Graphviz, Doxygen, documentation tool,
+  CI runner, GitHub Actions service, or build host;
 - semantic equivalence proof between text and DOT representations;
 - confidentiality for the embedded AWK implementation; or
 - an independently reproduced release build from a second trust domain.
@@ -391,14 +401,16 @@ The current design does not attempt to provide:
 Current evidence for this model includes:
 
 - accepted ADR constraints for build-time-only plugins and standalone artifacts;
-- pinned and digest-verified Bash/AWK documentation filters;
+- pinned and digest-verified Bash/AWK Doxygen filters and adrctl;
 - focused metadata/path-validation tests;
 - the same Bats public behavior suite against all artifact flavors;
 - Bash syntax validation of generated artifacts;
 - minimum-Bash compatibility execution;
 - deterministic-build comparison;
 - SHA-256 artifact companions;
-- generated documentation from prepared dependency state;
+- generated ADR navigation and reference documentation from prepared dependency
+  state;
+- atomic replacement of the generated ADR landing-page candidate;
 - Graphviz-present release validation for graphical outputs;
 - isolated-runtime tests that remove maintained source and `vendor/` before
   exercising the generated program;
@@ -417,7 +429,7 @@ Revisit this threat model when a change adds or alters:
 - the AWK embedding representation;
 - comment stripping or minification;
 - dependency acquisition or pinning;
-- documentation filters or generated-documentation authority;
+- documentation tools or generated-documentation authority;
 - network access;
 - privilege or credential use;
 - release job permissions, artifact transport, attestation, or publication

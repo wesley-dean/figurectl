@@ -20,11 +20,18 @@ FILE_PATTERNS          = *.bash \
 EXCLUDE                = dist \
                          tests \
                          vendor \
-                         doc/reference
+                         doc/reference \
+                         doc/adr/templates \
+                         doc/adr/preflight-checklist.md \
+                         doc/adr/README.intro.md \
+                         doc/adr/README.outro.md
 EXCLUDE_PATTERNS       = */dist/* \
                          */tests/* \
                          */vendor/* \
-                         */doc/reference/*
+                         */doc/reference/* \
+                         */doc/adr/templates/* \
+                         */README.intro.md \
+                         */README.outro.md
 EXTENSION_MAPPING      = bash=C \
                          sh=C \
                          awk=C++

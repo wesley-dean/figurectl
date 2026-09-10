@@ -185,14 +185,16 @@ GNU Make is the canonical development and CI orchestration surface:
   flavor.
 - `make test-report` writes one JUnit report per artifact flavor under
   `test-results/`.
-- `make docs` generates Bash and AWK reference documentation using prepared,
-  language-specific Doxygen filters.
+- `make adr-index` generates linked ADR navigation from maintained framing and the
+  current ADR corpus using prepared `adrctl` state.
+- `make docs` regenerates the ADR landing page and generates Bash/AWK reference
+  documentation using prepared, language-specific Doxygen filters.
 - `make clean` removes generated build/test/reference output.
 - `make distclean` additionally removes prepared repository dependencies.
 
 `make` is a build/development dependency.  Consumers of released `figurectl`
-artifacts do not need Make, bashdeps, Bash-Minifier, either Doxygen filter, or the
-maintained source tree.
+artifacts do not need Make, bashdeps, Bash-Minifier, adrctl, either Doxygen filter,
+or the maintained source tree.
 
 ## Release Artifacts
 
@@ -236,8 +238,9 @@ metadata validation, unsafe identifiers, stdin, Graphviz rendering, captions,
 link prefixes, and compatibility warnings.
 
 CI additionally verifies checksums, deterministic build bytes, Bash syntax,
-minimum-Bash representative behavior, and standalone execution after `src/`,
-`lib/`, `scripts/`, and `vendor/` are removed from the runtime environment.
+minimum-Bash representative behavior, standalone execution after `src/`, `lib/`,
+`scripts/`, and `vendor/` are removed from the runtime environment, and the
+ignored generated-state boundary for ADR navigation and Doxygen output.
 
 See [`doc/testing.md`](doc/testing.md).
 
@@ -251,10 +254,13 @@ passed as data rather than evaluated as Bash source.
 The project does not sandbox Graphviz or promise that arbitrary malicious DOT is
 safe to parse.  Build and documentation dependencies plus runtime
 interpreters/renderers remain part of the trusted computing base according to
-their authority.  Release validation and publication are separated so the larger
-build/test surface does not intentionally inherit release-write or OIDC authority.
+their authority.  The pinned adrctl dependency participates only in generated ADR
+navigation and does not enter release artifacts or runtime behavior.  Release
+validation and publication are separated so the larger build/test surface does
+not intentionally inherit release-write or OIDC authority.
 
-See [`doc/threat-model.md`](doc/threat-model.md), ADR-015, ADR-016, and ADR-020.
+See [`doc/threat-model.md`](doc/threat-model.md), ADR-015, ADR-016, ADR-020, and
+ADR-021.
 
 ## Documentation
 
@@ -279,10 +285,17 @@ The project uses documentation-driven, test-second development.
   verification sequencing and authority boundaries.
 
 `make docs` uses the pinned `bash-doxygen` filter for maintained Bash and the
-pinned `awk-doxygen` filter for maintained AWK.  Both are prepared through
-bashdeps; documentation generation itself does not synchronize dependencies.
-Generated reference output remains derivative of maintained source comments and
-ADRs.
+pinned `awk-doxygen` filter for maintained AWK.  The pinned `adrctl` artifact
+assembles `doc/adr/README.intro.md`, a linked list generated from the current ADR
+corpus, and `doc/adr/README.outro.md` into ignored `doc/adr/README.md`; Doxygen
+uses that generated Markdown as the reference landing page.  All three repository
+documentation tools are prepared through bashdeps, and documentation generation
+itself does not synchronize dependencies.
+
+Generated `doc/adr/README.md` and `doc/reference/` remain derivative of maintained
+source and are not committed.  Routine documentation generation does not include
+an ADR relationship graph.  Explicit Graphviz figure rendering and maintained
+security diagrams remain separate concerns.
 
 ## Architecture Lineage
 

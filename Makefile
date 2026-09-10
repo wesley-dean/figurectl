@@ -46,6 +46,11 @@ BASHDEPS_SHA256 := bb6c807fa12c010950bda06172ac0611d278c57aca1f8352f41502d0d76b4
 BASH_MINIFIER := $(VENDOR_DIR)/bash-minifier.bash
 DOXYGEN_BASH_FILTER := $(VENDOR_DIR)/doxygen-bash.awk
 DOXYGEN_AWK_FILTER := $(VENDOR_DIR)/doxygen-awk.awk
+ADRCTL := $(VENDOR_DIR)/adrctl.bash
+ADR_DIR := doc/adr
+ADR_INDEX_INTRO := $(ADR_DIR)/README.intro.md
+ADR_INDEX_OUTRO := $(ADR_DIR)/README.outro.md
+ADR_INDEX_FILE := $(ADR_DIR)/README.md
 REFERENCE_DOC_DIR := doc/reference
 
 VERSION ?= 0.0.0-dev
@@ -53,7 +58,7 @@ BUILD_COMMIT ?= $(shell commit="$$(git rev-parse --short=12 HEAD 2>/dev/null || 
 BUILD_DATE ?= $(shell git show -s --format=%cI HEAD 2>/dev/null || printf 'unknown')
 SHFMT_ARGUMENTS := -i 2 -bn -ci -sr -kp
 
-.PHONY: all build check checksums clean deps deps-check distclean docs docs-clean FORCE format test test-report verify-bashdeps
+.PHONY: all adr-index build check checksums clean deps deps-check distclean docs docs-clean FORCE format test test-report verify-bashdeps
 
 ## Synchronize repository dependencies, then build consumer artifacts.
 all: deps
@@ -173,17 +178,31 @@ deps: $(BASHDEPS) $(DEPENDENCY_MANIFEST)
 deps-check: verify-bashdeps $(DEPENDENCY_MANIFEST)
 	"$(BASHDEPS)" verify "$(DEPENDENCY_MANIFEST)"
 
+## Generate the linked ADR landing page from maintained framing and ADR source.
+adr-index:
+	@test -f "$(ADRCTL)" || { printf '%s\n' 'Missing documentation dependency vendor/adrctl.bash; run make deps or make all' >&2; exit 1; }
+	@test -f "$(ADR_INDEX_INTRO)" || { printf 'Missing ADR index introduction: %s\n' "$(ADR_INDEX_INTRO)" >&2; exit 1; }
+	@test -f "$(ADR_INDEX_OUTRO)" || { printf 'Missing ADR index conclusion: %s\n' "$(ADR_INDEX_OUTRO)" >&2; exit 1; }
+	@tmp="$$(mktemp "$(ADR_INDEX_FILE).tmp.XXXXXX")"; \
+	trap 'rm -f "$$tmp"' EXIT; \
+	bash "$(ADRCTL)" generate toc -i "$(ADR_INDEX_INTRO)" -o "$(ADR_INDEX_OUTRO)" >"$$tmp"; \
+	mv "$$tmp" "$(ADR_INDEX_FILE)"; \
+	trap - EXIT
+
 ## Generate Bash and AWK Doxygen reference documentation from prepared filter state.
 docs:
 	@test -f "$(DOXYGEN_BASH_FILTER)" || { printf '%s\n' 'Missing documentation dependency vendor/doxygen-bash.awk; run make deps or make all' >&2; exit 1; }
 	@test -f "$(DOXYGEN_AWK_FILTER)" || { printf '%s\n' 'Missing documentation dependency vendor/doxygen-awk.awk; run make deps or make all' >&2; exit 1; }
+	@test -f "$(ADRCTL)" || { printf '%s\n' 'Missing documentation dependency vendor/adrctl.bash; run make deps or make all' >&2; exit 1; }
 	$(MAKE) --no-print-directory docs-clean
+	$(MAKE) --no-print-directory adr-index
 	chmod 0755 "$(DOXYGEN_BASH_FILTER)" "$(DOXYGEN_AWK_FILTER)"
 	FIGURECTL_DOXYGEN_PROJECT_NAME="$(PROJECT_NAME)" doxygen Doxyfile
 
-## Remove generated reference documentation.
+## Remove generated reference documentation and ADR landing-page input.
 docs-clean:
 	rm -rf "$(REFERENCE_DOC_DIR)"
+	rm -f "$(ADR_INDEX_FILE)"
 
 ## Remove generated build and test-report artifacts while retaining dependency state.
 clean: docs-clean

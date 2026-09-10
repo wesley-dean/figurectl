@@ -219,8 +219,21 @@ read-only repository-content authority.  After those exact six release files pas
 the release contract, they cross into a separate publication job through a
 transient GitHub Actions artifact, where checksums are verified again before
 attestation and release/tag creation.  The publication job does not check out,
-rebuild, or synchronize project code, which keeps release write and OIDC authority
-away from the larger validation execution surface.
+rebuild, or synchronize figurectl source, which keeps release write and OIDC
+authority away from the larger validation execution surface.
 
 See [ADR-020](adr/ADR-020-separate-release-validation-from-publication-authority.md)
 and [`doc/release-verification.md`](release-verification.md).
+
+### ADR-021: Publish Ephemeral ADR Navigation as the Reference Landing Page
+
+Reference documentation generates linked ADR navigation from maintained
+`README.intro.md`, ADR files, and `README.outro.md` using a pinned released
+`adrctl` artifact.  The composite `doc/adr/README.md` and `doc/reference/` remain
+ignored generated state, while documentation generation stays offline and
+non-repairing after explicit dependency preparation.  The existing Bash/AWK
+Doxygen filters remain separate, routine documentation does not generate an ADR
+relationship graph, and adrctl expands only the documentation trust boundary
+recorded in `doc/threat-model.md`.
+
+See [ADR-021](adr/ADR-021-publish-ephemeral-adr-navigation-as-reference-landing-page.md).

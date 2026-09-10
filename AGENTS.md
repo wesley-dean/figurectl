@@ -11,8 +11,9 @@ Before consequential work:
 2. Read `doc/specification.md` for the public behavior contract.
 3. Read `doc/engineering-philosophy.md` for reusable engineering posture.
 4. Read `doc/decisions.md` for the concise architectural map.
-5. Read the ADR index in `doc/adr/README.md` and the ADRs governing the area being
-   changed.
+5. Read `doc/adr/README.intro.md`, `doc/adr/README.outro.md`, and the ADRs
+   governing the area being changed.  `doc/adr/README.md` is generated navigation,
+   not maintained source.
 6. Read `doc/built-in-format-plugins.md` before changing source/output plugin
    registration, discovery, dispatch, or capability serialization.
 7. Read `doc/threat-model.md` and `doc/threat-modeling.md` when work changes
@@ -151,10 +152,13 @@ particular:
 
 Generated reference documentation uses separate prepared language-specific
 filters: `vendor/doxygen-bash.awk` for maintained Bash and
-`vendor/doxygen-awk.awk` for maintained AWK.  Both are pinned repository
-dependencies managed by bashdeps.  `make docs` consumes those prepared files and
-must not synchronize them.  Generated output remains derivative and does not
-relax or supersede the maintained-source documentation standards.
+`vendor/doxygen-awk.awk` for maintained AWK.  The prepared `vendor/adrctl.bash`
+artifact generates linked ADR navigation from maintained `README.intro.md`, the
+ADR corpus, and `README.outro.md`.  All three are pinned repository dependencies
+managed by bashdeps.  `make docs` consumes those prepared files and must not
+synchronize them.  Generated `doc/adr/README.md` and `doc/reference/` output remain
+derivative and do not relax or supersede maintained-source documentation or ADRs.
+Routine documentation generation must not add an ADR relationship graph.
 
 ## Build and Dependency Boundaries
 
@@ -167,14 +171,16 @@ GNU Make is the canonical development/CI orchestration surface.
 - `make all` runs `deps` then `build`.
 - `make check` validates maintained Bash and portable-AWK source.
 - `make test` and `make test-report` exercise the exact generated artifacts.
-- `make docs` consumes prepared Bash/AWK documentation filters and must not
-  silently synchronize them.
+- `make adr-index` consumes prepared adrctl state, generates ignored
+  `doc/adr/README.md` atomically, and must not synchronize dependencies.
+- `make docs` consumes prepared Bash/AWK documentation filters and adrctl, rebuilds
+  the ADR landing page, and must not silently synchronize dependencies.
 
 bashdeps manages repository dependencies, not system packages.  Build/runtime
 system commands such as Make, Bash, AWK, Graphviz, Bats, Doxygen, ShellCheck, and
 shfmt remain outside bashdeps package-management scope.  `bash-doxygen`,
-`awk-doxygen`, and Bash-Minifier are repository dependencies because the project
-pins and consumes their artifacts directly.
+`awk-doxygen`, `adrctl`, and Bash-Minifier are repository dependencies because the
+project pins and consumes their artifacts directly.
 
 ## Release Artifacts
 
@@ -232,7 +238,9 @@ occur, such as path traversal, unexpected diagnostics on stdout, runtime plugin
 discovery, or leakage of non-selected figure representations.
 
 CI additionally executes copied artifacts after removing `src/`, `lib/`,
-`scripts/`, and `vendor/` to prove the single-file runtime boundary.
+`scripts/`, and `vendor/` to prove the single-file runtime boundary.  Documentation
+validation also verifies that the generated ADR landing page and Doxygen HTML are
+ignored state and that generation leaves tracked repository content clean.
 
 ## Security and Threat Modeling
 
@@ -248,8 +256,10 @@ Important invariants include:
 - DOT/style content is data, not Bash source;
 - Graphviz remains a trusted conditional native-code parser rather than a
   sandboxed component;
-- repository documentation filters are pinned and digest-verified through
-  bashdeps rather than fetched during `make docs`;
+- repository documentation filters and adrctl are pinned and digest-verified
+  through bashdeps rather than fetched during `make docs`;
+- generated ADR navigation is staged before atomic replacement and remains
+  derivative repository state;
 - release validation does not intentionally receive publication write/OIDC
   authority; and
 - transferred release bytes are checksum-verified before attestation and
@@ -283,11 +293,13 @@ parser semantics.  Deliberately preserved quirks documented in
 - `doc/threat-model.md`: project-specific threat model.
 - `doc/release-verification.md`: exact-artifact release and authority contract.
 - `doc/decisions.md`: concise Accepted-decision map.
-- `doc/adr/`: full architectural decisions.
+- `doc/adr/`: full architectural decisions plus maintained ADR landing-page
+  framing.
+- `doc/adr/README.md`: generated linked ADR navigation; do not commit.
 - `doc/documentation-standard.md`: maintained Bash documentation standard.
 - `doc/awk-documentation-standard.md`: maintained AWK documentation standard.
 - `doc/reference/`: generated reference documentation; do not commit.
 - `vendor/`: generated dependency state, including language-specific Doxygen
-  filters; do not commit.
+  filters and adrctl; do not commit.
 - `dist/`: generated release artifacts; do not edit directly.
 - `test-results/`: generated JUnit reports.
