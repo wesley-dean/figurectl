@@ -40,8 +40,15 @@ jobs:
       - name: Generate Doxygen documentation
         run: make docs
 
-      - name: Verify dependency state after documentation generation
-        run: make deps-check
+      - name: Verify generated documentation state
+        run: |
+          make deps-check
+          test -f doc/adr/README.md
+          grep -F 'ADR-021' doc/adr/README.md
+          git check-ignore -q doc/adr/README.md
+          test -f doc/reference/index.html
+          git check-ignore -q doc/reference/index.html
+          test -z "$(git status --short)"
 
       - name: Configure Pages
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
