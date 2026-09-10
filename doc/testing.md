@@ -153,6 +153,41 @@ The minimum supported Bash version is a runtime contract.  CI runs
 `tests/compat-bash43.bash` against every generated flavor under Bash 4.3 and
 performs representative text processing rather than syntax validation alone.
 
+## Documentation Generation Evidence
+
+Repository documentation has an explicit preparation-versus-generation boundary.
+`make deps` may synchronize the pinned documentation dependencies, while
+`make deps-check`, `make adr-index`, and `make docs` consume prepared state without
+repairing or acquiring it.
+
+The documentation toolchain includes:
+
+- `vendor/doxygen-bash.awk` for maintained Bash;
+- `vendor/doxygen-awk.awk` for maintained AWK; and
+- `vendor/adrctl.bash` for linked ADR navigation.
+
+`make adr-index` combines maintained `doc/adr/README.intro.md`, the current ADR
+corpus, and maintained `doc/adr/README.outro.md` into generated
+`doc/adr/README.md`.  Generation is staged to a same-directory temporary candidate
+and replaces the final pathname only after adrctl succeeds.
+
+`make docs` regenerates that landing page and then produces Doxygen HTML under
+`doc/reference/`.  Both generated layers are ignored repository state.  CI should
+verify that the generated README contains the current ADR, that both generated
+paths are ignored, and that documentation generation leaves tracked repository
+state clean.
+
+Negative validation matters at this boundary.  Missing prepared Doxygen filters or
+adrctl state must make `make docs` fail with an actionable preparation message; the
+documentation target must not invoke dependency synchronization to repair that
+state.  `make deps-check` should still pass after successful documentation
+generation, demonstrating that the build consumed rather than mutated the approved
+dependency bytes.
+
+Routine documentation validation does not require an ADR relationship graph.
+Graphviz behavior used by figurectl itself remains covered separately by the
+runtime/rendering tests below.
+
 ## Conditional Graphviz Tests
 
 Graphviz `dot` is a conditional runtime dependency for SVG/PNG output.  Tests that
