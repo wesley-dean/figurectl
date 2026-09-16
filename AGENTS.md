@@ -20,8 +20,8 @@ Before consequential work:
    authority, untrusted-input handling, filesystem output, subprocess behavior,
    dependencies, build transformations, plugin boundaries, release permissions,
    or other security-relevant behavior.
-8. Read `doc/documentation-standard.md` before editing maintained Bash comments.
-9. Read `doc/awk-documentation-standard.md` before editing maintained AWK source.
+8. Read `doc/standards/bash/documentation-standard.md` before editing maintained Bash comments.
+9. Read `doc/standards/awk/documentation-standard.md` before editing maintained AWK source.
 10. Read `doc/testing.md` before changing tests or generated artifacts.
 11. Read `doc/release-verification.md` before changing release behavior.
 
@@ -134,9 +134,9 @@ Graphviz `dot` is a conditional runtime dependency for SVG/PNG rendering only.
 
 ## Documentation Standards
 
-Maintained Bash follows `doc/documentation-standard.md` and ADR-007.
+Maintained Bash follows `doc/standards/bash/documentation-standard.md` and ADR-007.
 
-Maintained AWK follows `doc/awk-documentation-standard.md` and ADR-019.  In
+Maintained AWK follows `doc/standards/awk/documentation-standard.md` and ADR-019.  In
 particular:
 
 - use `##` Doxygen blocks;
@@ -296,10 +296,20 @@ parser semantics.  Deliberately preserved quirks documented in
 - `doc/adr/`: full architectural decisions plus maintained ADR landing-page
   framing.
 - `doc/adr/README.md`: generated linked ADR navigation; do not commit.
-- `doc/documentation-standard.md`: maintained Bash documentation standard.
-- `doc/awk-documentation-standard.md`: maintained AWK documentation standard.
+- `doc/standards/bash/documentation-standard.md`: maintained Bash documentation standard.
+- `doc/standards/awk/documentation-standard.md`: maintained AWK documentation standard.
 - `doc/reference/`: generated reference documentation; do not commit.
 - `vendor/`: generated dependency state, including language-specific Doxygen
   filters and adrctl; do not commit.
 - `dist/`: generated release artifacts; do not edit directly.
 - `test-results/`: generated JUnit reports.
+
+## Shared Coding Standards
+
+This repository adopts the complete pinned `coding_standards@v1.0.9` snapshot under `doc/standards/`; `.codingstandardrc` records its verified release digest.  Applicable imported standards are governing requirements unless an accepted local ADR or explicit policy refines them.  Presence does not imply applicability, examples remain illustrative, imported standards are not edited locally, and upgrades are reviewed repository changes rather than automatic synchronization.
+
+Authoritative shared documentation standards used here:
+
+- Bash: `doc/standards/bash/documentation-standard.md`
+- AWK: `doc/standards/awk/documentation-standard.md`
+
