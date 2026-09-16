@@ -14,8 +14,8 @@ Before consequential work, please read:
 - `AGENTS.md` for the concise repository map;
 - `doc/built-in-format-plugins.md` before changing format registration or build
   discovery;
-- `doc/documentation-standard.md` before editing maintained Bash comments;
-- `doc/awk-documentation-standard.md` before editing maintained AWK source;
+- `doc/standards/bash/documentation-standard.md` before editing maintained Bash comments;
+- `doc/standards/awk/documentation-standard.md` before editing maintained AWK source;
 - `doc/testing.md` before changing tests or generated artifacts;
 - `doc/threat-model.md` when trust, authority, parsing, filesystem, renderer,
   dependency, or release boundaries change; and

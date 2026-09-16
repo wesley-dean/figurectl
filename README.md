@@ -272,9 +272,9 @@ The project uses documentation-driven, test-second development.
 - [`doc/adr/`](doc/adr/) preserves architectural reasoning and tradeoffs.
 - [`doc/engineering-philosophy.md`](doc/engineering-philosophy.md) records reusable
   engineering posture where no specific ADR governs.
-- [`doc/documentation-standard.md`](doc/documentation-standard.md) governs
+- [`doc/standards/bash/documentation-standard.md`](doc/standards/bash/documentation-standard.md) governs
   maintained Bash documentation.
-- [`doc/awk-documentation-standard.md`](doc/awk-documentation-standard.md) governs
+- [`doc/standards/awk/documentation-standard.md`](doc/standards/awk/documentation-standard.md) governs
   maintained AWK documentation.
 - [`doc/built-in-format-plugins.md`](doc/built-in-format-plugins.md) defines the
   internal build-time format-module contract.
@@ -313,3 +313,13 @@ while preserving a single-file runtime boundary.
 
 figurectl is dedicated to the public domain under CC0 1.0 Universal.  See
 [`LICENSE`](LICENSE).
+
+## Shared Coding Standards
+
+This repository adopts the complete pinned `coding_standards@v1.0.9` snapshot under `doc/standards/`; `.codingstandardrc` records its verified release digest.  Applicable imported standards are governing requirements unless an accepted local ADR or explicit policy refines them.  Presence does not imply applicability, examples remain illustrative, imported standards are not edited locally, and upgrades are reviewed repository changes rather than automatic synchronization.
+
+Authoritative shared documentation standards used here:
+
+- Bash: `doc/standards/bash/documentation-standard.md`
+- AWK: `doc/standards/awk/documentation-standard.md`
+

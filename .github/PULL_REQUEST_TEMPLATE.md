@@ -43,9 +43,9 @@ the threat-model impact and residual risk.
       documented when affected.
 - [ ] Governing ADRs and `doc/decisions.md` are updated when architecture changed.
 - [ ] Promises and non-promises are explicit for consequential new behavior.
-- [ ] Bash Doxygen comments follow `doc/documentation-standard.md` when maintained
+- [ ] Bash Doxygen comments follow `doc/standards/bash/documentation-standard.md` when maintained
       Bash contracts changed.
-- [ ] AWK documentation follows `doc/awk-documentation-standard.md` when maintained
+- [ ] AWK documentation follows `doc/standards/awk/documentation-standard.md` when maintained
       AWK contracts changed.
 - [ ] Tests exercise each affected shipped artifact flavor.
 - [ ] Negative assertions are included when the contract requires forbidden data

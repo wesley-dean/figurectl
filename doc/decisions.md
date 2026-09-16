@@ -201,7 +201,7 @@ See [ADR-018](adr/ADR-018-build-time-input-output-plugin-architecture.md).
 
 ### ADR-019: Adopt the AWK Documentation Standard
 
-Maintained AWK follows `doc/awk-documentation-standard.md`, including AWK-specific
+Maintained AWK follows `doc/standards/awk/documentation-standard.md`, including AWK-specific
 contracts for functions, pseudo-locals, significant globals, record context, and
 `BEGIN`/`END`/pattern-action rules.  Portable AWK is the default portability claim
 unless another accepted decision explicitly changes it.  `make docs` uses the
@@ -210,7 +210,7 @@ for Bash, while maintained source remains authoritative over generated reference
 output.
 
 See [ADR-019](adr/ADR-019-adopt-awk-documentation-standard.md) and
-[`doc/awk-documentation-standard.md`](awk-documentation-standard.md).
+[`doc/standards/awk/documentation-standard.md`](awk-documentation-standard.md).
 
 ### ADR-020: Separate Release Validation from Publication Authority
 
@@ -237,3 +237,19 @@ relationship graph, and adrctl expands only the documentation trust boundary
 recorded in `doc/threat-model.md`.
 
 See [ADR-021](adr/ADR-021-publish-ephemeral-adr-navigation-as-reference-landing-page.md).
+
+## ADR-022: Adopt shared coding standards
+
+**Status:** Accepted
+
+The repository adopts the complete verified `coding_standards@v1.0.9` snapshot
+beneath `doc/standards/`, with exact release provenance recorded in
+`.codingstandardrc`.  Applicable imported standards govern where relevant while
+accepted repository-specific ADRs and explicit local policy retain precedence for
+intentional refinements; presence in the snapshot does not itself imply
+applicability.  Duplicate live documentation-standard files are removed where
+present so shared documentation rules have one authoritative managed path, while
+historical ADR text remains unchanged.  Future standards upgrades replace the
+complete snapshot through normal review rather than local edits or automatic
+synchronization.  See
+[ADR-022](adr/ADR-022-adopt-shared-coding-standards.md).
