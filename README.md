@@ -316,10 +316,15 @@ figurectl is dedicated to the public domain under CC0 1.0 Universal.  See
 
 ## Shared Coding Standards
 
-This repository adopts the complete pinned `coding_standards@v2.1.0` snapshot under `doc/standards/`; `.codingstandardrc` records its verified release digest.  Applicable imported standards are governing requirements unless an accepted local ADR or explicit policy refines them.  Presence does not imply applicability, examples remain illustrative, imported standards are not edited locally, and upgrades are reviewed repository changes rather than automatic synchronization.
+This repository adopts the complete pinned `coding_standards@v3.2.0` snapshot under `doc/standards/`; `.codingstandardrc` records its verified release digest.  Applicable imported standards are governing requirements unless an accepted local ADR or explicit policy refines them.  Presence does not imply applicability, examples remain illustrative, imported standards are not edited locally, and upgrades are reviewed repository changes rather than automatic synchronization.
 
 Authoritative shared documentation standards used here:
 
 - Bash: `doc/standards/bash/documentation-standard.md`
 - AWK: `doc/standards/awk/documentation-standard.md`
 
+
+
+## Dependabot maintenance
+
+Routine GitHub Actions dependency version updates are scheduled weekly with a seven-day cooldown and a single broad group for eligible major, minor, and patch releases.  Security updates remain separate, and any group containing a major update must receive manual review.  The existing non-major-only Dependabot auto-merge condition is preserved.  Existing dependency-update PRs are not assumed to be superseded.  See [ADR-023](doc/adr/ADR-023-consolidate-github-actions-dependabot-maintenance.md).
