@@ -242,7 +242,7 @@ See [ADR-021](adr/ADR-021-publish-ephemeral-adr-navigation-as-reference-landing-
 
 **Status:** Accepted
 
-The repository adopts the complete verified `coding_standards@v2.1.0` snapshot
+The repository adopts the complete verified `coding_standards@v3.2.0` snapshot
 beneath `doc/standards/`, with exact release provenance recorded in
 `.codingstandardrc`.  Applicable imported standards govern where relevant while
 accepted repository-specific ADRs and explicit local policy retain precedence for
@@ -253,3 +253,10 @@ historical ADR text remains unchanged.  Future standards upgrades replace the
 complete snapshot through normal review rather than local edits or automatic
 synchronization.  See
 [ADR-022](adr/ADR-022-adopt-shared-coding-standards.md).
+
+
+## ADR-023: Consolidate GitHub Actions Dependabot Version Updates
+
+Routine GitHub Actions dependency version updates remain weekly with a seven-day cooldown, but eligible major, minor, and patch changes are grouped together through a wildcard version-update group.  Security updates remain independent, and the existing non-major-only automatic-merge condition is retained.  Any group containing a major upgrade requires targeted maintainer review of compatibility, permissions, and release-security implications.  Existing Dependabot PRs are not automatically considered superseded.
+
+See [ADR-023](adr/ADR-023-consolidate-github-actions-dependabot-maintenance.md).
