@@ -260,3 +260,17 @@ synchronization.  See
 Routine GitHub Actions dependency version updates remain weekly with a seven-day cooldown, but eligible major, minor, and patch changes are grouped together through a wildcard version-update group.  Security updates remain independent, and the existing non-major-only automatic-merge condition is retained.  Any group containing a major upgrade requires targeted maintainer review of compatibility, permissions, and release-security implications.  Existing Dependabot PRs are not automatically considered superseded.
 
 See [ADR-023](adr/ADR-023-consolidate-github-actions-dependabot-maintenance.md).
+
+## ADR-024: Migrate Routine Dependency Updates to Centrally Managed Renovate
+
+The repository enrolls in the central Jenkins-hosted Renovate service through
+root `renovate.json` and disables scheduled Dependabot GitHub Actions
+version-update PR generation. Dependabot security alerts and advisory-driven
+updates remain independent while immutable verified action pins, required
+checks, and human code-owner review continue to apply. ADR-024 partially
+supersedes ADR-023's routine scheduled provider and its PR-limit restrictions,
+but preserves the earlier security and release-risk safeguards. The migration
+does not establish successful Jenkins execution or automatic replacement of
+retired routine PRs.
+
+See [ADR-024](adr/ADR-024-migrate-routine-dependency-updates-to-renovate.md).
